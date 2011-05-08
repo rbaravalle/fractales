@@ -1,0 +1,149 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript">
+
+    var MIN = -2;
+    var MAX = 4;
+    var MINY = -4;
+    var MAXY = 4;
+
+    var STEP = (MAX-MIN)/1000;
+
+    var xPos, yPos;
+    var scal = 1;
+    var desplX = -MIN;
+    var desplY = 0;
+    var ctx;
+    var escala = 2;
+
+    function handle(delta) {
+
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+                //MIN = xValue - ventana/escala;
+                MIN = xValue - (xValue-MIN)/escala;
+                MAX = MIN + ventana;
+
+                MINY = yValue - (yValue-MINY)/escala;
+                MAXY = MINY + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MIN = xValue - escala*(xValue-MIN);
+                MAX = MIN + escala*ventana;
+                MINY = yValue - escala*(yValue-MINY);
+                MAXY = MINY + escala*ventanaY;
+            }
+            dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+     
+    function wheel(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }f
+            if (delta)
+                    handle(delta);
+    }
+
+    function findPos(obj) {
+        var curleft = curtop = 0;
+        if (obj.offsetParent) {
+            do {
+                curleft += obj.offsetLeft;
+                curtop += obj.offsetTop;
+            } while (obj = obj.offsetParent);
+            return { x: curleft, y: curtop };
+        }
+    }
+
+
+
+    function init(canvas) {
+        try {
+            if (canvas.addEventListener)
+                    canvas.addEventListener('DOMMouseScroll', wheel, false);
+            canvas.onmousewheel = canvas.onmousewheel = wheel;
+
+            canvas.onmousemove = function(e) {
+                var pos = findPos(this);
+                xPos = e.pageX - pos.x;
+                yPos = e.pageY - pos.y;
+            };
+
+        } catch (e) {
+            alert("Problem!");
+        }
+    }
+
+    function f(a,x) {
+        return a*x*(1-x);
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar(ctx,x0,x1,y0,y1) {
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx.clearRect ( 0 , 0 , w , h );
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        step = diffX/(w*2);
+
+        var v;
+        for(var a = x0; a < x1; a += step) {
+                v = 0.5;
+                for(var i = 1; i < 200; i++) {
+                    v = f(a, v);
+                    if(i>100 && v >= y0 && v <= y1) { 
+                        var x = Math.ceil((a-x0)*w/diffX);
+                        var y = Math.ceil((v-y0)*h/diffY);
+                        ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
+                        ctx.fillRect(x,h-y,1,1);
+                    }
+                }
+        }
+
+    }
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        init(canvas);
+
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+
+    }
+
+
+</script>
+
+
+</head>
+
+
+<body onload="start();">
+
+    <canvas id="canvas" style="background-color:black" width="800" height="800"></canvas>
+
+</body>
+
+</html>
