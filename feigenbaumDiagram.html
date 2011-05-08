@@ -6,19 +6,26 @@
 
 <script type="text/javascript">
 
-    var MIN = -2;
+    var MIN = -4;
     var MAX = 4;
     var MINY = -4;
     var MAXY = 4;
 
     var STEP = (MAX-MIN)/1000;
 
+    var click;
     var xPos, yPos;
-    var scal = 1;
-    var desplX = -MIN;
-    var desplY = 0;
     var ctx;
     var escala = 2;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+
+    function reset() {
+        MIN = -4;
+        MAX = 4;
+        MINY = -4;
+        MAXY = 4;
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
 
     function handle(delta) {
 
@@ -30,7 +37,7 @@
             if(delta > 0) {
                 var ventana = diff/escala;
                 var ventanaY = diffY/escala;
-                //MIN = xValue - ventana/escala;
+
                 MIN = xValue - (xValue-MIN)/escala;
                 MAX = MIN + ventana;
 
@@ -75,22 +82,61 @@
         }
     }
 
+    function onMouseMove(e)
+    {
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
 
+        if(click) {
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+            
+            MIN  = MIN  - (xValue-x);
+            MAX  = MAX  - (xValue-x);
+            MINY = MINY - (yValue-y);
+            MAXY = MAXY - (yValue-y);
 
+            dibujar(ctx,MIN,MAX,MINY,MAXY);
+        }
+    }
+
+    function onButtonDown(e)
+    {
+        click = true;
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        document.getElementById('canvas').style.cursor='pointer';
+
+        var diff = MAX-MIN;
+        var diffY = MAXY-MINY;
+        x = MIN + diff*xPos/document.getElementById('canvas').width;
+        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+        
+    }
+
+    function onButtonUp(e)
+    {
+        click = false;
+        document.getElementById('canvas').style.cursor='default';
+    }    
+        
     function init(canvas) {
         try {
             if (canvas.addEventListener)
                     canvas.addEventListener('DOMMouseScroll', wheel, false);
-            canvas.onmousewheel = canvas.onmousewheel = wheel;
+            canvas.onmousewheel = wheel;
+            canvas.onmousemove = onMouseMove;
 
-            canvas.onmousemove = function(e) {
-                var pos = findPos(this);
-                xPos = e.pageX - pos.x;
-                yPos = e.pageY - pos.y;
-            };
+            canvas.onmousedown=onButtonDown;
+            canvas.onmouseup=onButtonUp;
 
         } catch (e) {
-            alert("Problem!");
+            alert("Problema con canvas!");
         }
     }
 
@@ -103,6 +149,7 @@
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
+
         var diffX = x1-x0;
         var diffY = y1-y0;
 
@@ -122,6 +169,11 @@
                 }
         }
 
+        document.getElementById('minX').innerHTML = MIN;
+        document.getElementById('maxX').innerHTML = MAX;
+        document.getElementById('maxY').innerHTML = MAXY;
+        document.getElementById('minY').innerHTML = MINY;
+
     }
 
     function start() {
@@ -140,10 +192,26 @@
 </head>
 
 
-<body onload="start();">
+<body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <canvas id="canvas" style="background-color:black" width="800" height="800"></canvas>
+    <div style="text-align:center; font-size:30px">Diagrama de Feigenbaum</div>
+
+    <input type="button" onclick="reset()" value="Reset" />
+    
+    <br />
+
+    <div id="canvas-container" style="float:left;">
+        <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
+    </div>
+
+    <div id="maxY" style="font-size:30px;"></div>
+    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+
+    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+
 
 </body>
 
 </html>
+
