@@ -172,11 +172,11 @@
         
         ctx.beginPath();
         ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
-        var uno = Math.ceil((init-x0)*w/diffX);
-        var dos = h - Math.ceil((f(a,init)-y0)*h/diffY);
-	    ctx.moveTo(uno, dos);
-        //alert("a : " + uno + " b : " + dos);
-        for(var j = 0; j < MAX; j++ ) {
+        var initX = Math.ceil((0-x0)*w/diffX);
+        var initY = h-Math.ceil((f(a,init)-y0)*h/diffY);
+	    ctx.moveTo(initX, initY);
+
+        for(var j = 0; j < Math.ceil(MAX); j++ ) {
             v = f(a,init);
 
             var x = Math.ceil((j-x0)*w/diffX);
@@ -185,7 +185,7 @@
 	        ctx.lineTo(x,h-y);
 
             ctx.fillRect(x-2,h-y-2,4,4);
-            //ctx.fillRect(v,h-yi,1,1);
+
             init = v;
         }
         ctx.stroke();
@@ -216,12 +216,14 @@
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px">Iteraciones Gr&aacute;ficas</div>
+    <div style="text-align:center; font-size:30px">Gr&aacute;fica Temporal del iterador cuadr&aacute;tico</div>
 
     <input type="button" onclick="reset()" value="Reset" />
 
-    init<input id="x0" type="text" value="0.1" />
-    a<input id="a" type="text" value="2.75" />
+    <span style="text-align:center; font-size:20px">Valor Inicial</span>
+    <input id="x0" type="text" value="0.1" />
+    <span style="text-align:center; font-size:20px">x0</span>
+    <input id="a" type="text" value="2.75" />
     
     <br />
 
