@@ -6,7 +6,7 @@
 
 <script type="text/javascript">
 
-    var MIN = 0;
+    var MIN = -1;
     var MAX = 1;
     var MINY = -1;
     var MAXY = 1;
@@ -21,7 +21,7 @@
     var cursorX, cursorY, cursorA = 0;
 
     function reset() {
-        MIN = 0;
+        MIN = -1;
         MAX = 1;
         MINY = -1;
         MAXY = 1;
@@ -156,7 +156,7 @@
 
     // forma de generar
     function reglas(c) {
-        if(c == 'F') return "++F--F";
+        if(c == 'F') return "F+F--F+F";
         if(c == 'f') return 'f';
         if(c == '+') return '+';
         if(c == '-') return '-';
@@ -204,38 +204,42 @@
         var diffX = x1-x0;
         var diffY = y1-y0;
 
-        step = diffX/w;
-        
+        var propX = w/diffX;
+        var propY = w/diffY;
+    
 
         var s = 'F';
         var d = derivar(s);
-        //alert(d);
-        while(d.length < w/diffX)
+
+        while(cantF(d) < w/diffX)
             d = derivar(d);
 
         cursorX = 0;
         cursorY = 0;
 
+        var pi4 = Math.PI / 4;
+
         for(var i = 0; i < d.length; i++) {
-            if(d.charAt(i) == 'F' || d.charAt(i) == 'f') {
-
-
+            var ch = d.charAt(i);
+            if(ch == 'F' || ch == 'f') {
                 ctx.beginPath();
 
-                var initX = Math.ceil((cursorX-x0)*w/diffX);
-                var initY = h-Math.ceil((cursorY-y0)*h/diffY);
+                var initX = Math.ceil((cursorX-x0)*propX);
+                var initY = h-Math.ceil((cursorY-y0)*propY);
 	            ctx.moveTo(initX, initY);
 
-
-                var arr = rotar(cursorX+(1/cantF(d)),cursorY,cursorX,cursorY, cursorA);
-                var xn = arr[0];
-                var yn = arr[1];
+                var xn=cursorX+(10/cantF(d)),yn=cursorY;
+                if(cursorA) {
+                    var arr = rotar(cursorX+(10/cantF(d)),cursorY,cursorX,cursorY, cursorA);
+                    xn = arr[0];
+                    yn = arr[1];
+                }
                 
-                if(d.charAt(i) == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
+                if(ch == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
                 else ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
 
-                var actualX = Math.ceil((xn-x0)*w/diffX);
-                var actualY = h-Math.ceil((yn-y0)*h/diffY);
+                var actualX = Math.ceil((xn-x0)*propX);
+                var actualY = h-Math.ceil((yn-y0)*propY);
 
                 ctx.lineTo( actualX, actualY );
 
@@ -246,17 +250,17 @@
                 cursorY = yn;
             }
 
-            if(d.charAt(i) == '+') cursorA += Math.PI / 4;
-            if(d.charAt(i) == '-') cursorA -= Math.PI / 4;
+            if(ch == '+') cursorA += pi4;
+            if(ch == '-') cursorA -= pi4;
         }
 
 
 
 
-        document.getElementById('minX').innerHTML = MIN;
+        /*document.getElementById('minX').innerHTML = MIN;
         document.getElementById('maxX').innerHTML = MAX;
         document.getElementById('maxY').innerHTML = MAXY;
-        document.getElementById('minY').innerHTML = MINY;
+        document.getElementById('minY').innerHTML = MINY;*/
 
     }
 
@@ -278,7 +282,7 @@
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px">Diagrama de Feigenbaum</div>
+    <div style="text-align:center; font-size:30px">Tortuga</div>
 
     <input type="button" onclick="reset()" value="Reset" />
     
@@ -288,11 +292,11 @@
         <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
     </div>
 
-    <div id="maxY" style="font-size:30px;"></div>
+    <!--<div id="maxY" style="font-size:30px;"></div>
     <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
 
     <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
-    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>-->
 
 
 </body>
