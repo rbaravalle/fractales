@@ -21,7 +21,7 @@
 
     function reset() {
         MIN = 0;
-        MAX = 1;
+        MAX = 40;
         MINY = 0;
         MAXY = 1;
         document.getElementById('a').value = 2.75;
@@ -185,6 +185,7 @@
 	        ctx.lineTo(x,h-y);
 
             ctx.fillRect(x-2,h-y-2,4,4);
+            //ctx.fillRect(v,h-yi,1,1);
             init = v;
         }
         ctx.stroke();
@@ -215,7 +216,7 @@
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px"></div>
+    <div style="text-align:center; font-size:30px">Iteraciones Gr&aacute;ficas</div>
 
     <input type="button" onclick="reset()" value="Reset" />
 
