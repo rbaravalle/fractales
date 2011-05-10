@@ -1,0 +1,301 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript">
+
+    var MIN = 0;
+    var MAX = 1;
+    var MINY = -1;
+    var MAXY = 1;
+
+    var STEP = (MAX-MIN)/1000;
+
+    var click;
+    var xPos, yPos;
+    var ctx;
+    var escala = 2;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cursorX, cursorY, cursorA = 0;
+
+    function reset() {
+        MIN = 0;
+        MAX = 1;
+        MINY = -1;
+        MAXY = 1;
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+    function handle(delta) {
+
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+
+                MIN = xValue - (xValue-MIN)/escala;
+                MAX = MIN + ventana;
+
+                MINY = yValue - (yValue-MINY)/escala;
+                MAXY = MINY + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MIN = xValue - escala*(xValue-MIN);
+                MAX = MIN + escala*ventana;
+                MINY = yValue - escala*(yValue-MINY);
+                MAXY = MINY + escala*ventanaY;
+            }
+            dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+     
+    function wheel(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }f
+            if (delta)
+                    handle(delta);
+    }
+
+    function findPos(obj) {
+        var curleft = curtop = 0;
+        if (obj.offsetParent) {
+            do {
+                curleft += obj.offsetLeft;
+                curtop += obj.offsetTop;
+            } while (obj = obj.offsetParent);
+            return { x: curleft, y: curtop };
+        }
+    }
+
+    function onMouseMove(e)
+    {
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        if(click) {
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+            
+            MIN  = MIN  - (xValue-x);
+            MAX  = MAX  - (xValue-x);
+            MINY = MINY - (yValue-y);
+            MAXY = MAXY - (yValue-y);
+
+            dibujar(ctx,MIN,MAX,MINY,MAXY);
+        }
+    }
+
+    function onButtonDown(e)
+    {
+        click = true;
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        document.getElementById('canvas').style.cursor='pointer';
+
+        var diff = MAX-MIN;
+        var diffY = MAXY-MINY;
+        x = MIN + diff*xPos/document.getElementById('canvas').width;
+        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+        
+    }
+
+    function onButtonUp(e)
+    {
+        click = false;
+        document.getElementById('canvas').style.cursor='default';
+    }    
+        
+    function init(canvas) {
+        try {
+            if (canvas.addEventListener)
+                    canvas.addEventListener('DOMMouseScroll', wheel, false);
+            canvas.onmousewheel = wheel;
+            canvas.onmousemove = onMouseMove;
+
+            canvas.onmousedown=onButtonDown;
+            canvas.onmouseup=onButtonUp;
+
+        } catch (e) {
+            alert("Problema con canvas!");
+        }
+    }
+
+    function f(a,x) {
+        return a*x*(1-x);
+    }
+
+    // derivacion
+    function derivar(s) {
+        var d = '';
+        for(var i = 0; i < s.length; i++)
+            d += reglas(s.charAt(i));
+
+        return d;
+    }
+
+    // forma de generar
+    function reglas(c) {
+        if(c == 'F') return "++F--F";
+        if(c == 'f') return 'f';
+        if(c == '+') return '+';
+        if(c == '-') return '-';
+    }
+
+    function cantF(s) {
+        /*s = s.map(s.charAt(i) == 'f' || s.charAt(i) == 'F');
+        alert(s);*/
+        var c = 0;
+        for(var i = 0; i < s.length; i++) {
+            if(s.charAt(i) == 'f' || s.charAt(i) == 'F') c++;
+        }
+
+        return c;
+    }
+
+    function rotar(xi,yi,xf,yf,angle)
+    {
+      co = Math.cos(angle);
+      se = Math.sin(angle);
+      var tempX = xi, tempY = yi;
+
+      if(angle != 0)
+      {
+          tempX -= xf;
+          tempY -= yf;
+
+          var auxX, auxY;
+          auxX = co * tempX - se * tempY;
+          auxY = se * tempX + co * tempY;
+
+          tempX = auxX + xf;
+          tempY = auxY + yf;
+      }
+
+      return [tempX,tempY];
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar(ctx,x0,x1,y0,y1) {
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx.clearRect ( 0 , 0 , w , h );
+
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        step = diffX/w;
+        
+
+        var s = 'F';
+        var d = derivar(s);
+        //alert(d);
+        while(d.length < w/diffX)
+            d = derivar(d);
+
+        cursorX = 0;
+        cursorY = 0;
+
+        for(var i = 0; i < d.length; i++) {
+            if(d.charAt(i) == 'F' || d.charAt(i) == 'f') {
+
+
+                ctx.beginPath();
+
+                var initX = Math.ceil((cursorX-x0)*w/diffX);
+                var initY = h-Math.ceil((cursorY-y0)*h/diffY);
+	            ctx.moveTo(initX, initY);
+
+
+                var arr = rotar(cursorX+(1/cantF(d)),cursorY,cursorX,cursorY, cursorA);
+                var xn = arr[0];
+                var yn = arr[1];
+                
+                if(d.charAt(i) == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
+                else ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
+
+                var actualX = Math.ceil((xn-x0)*w/diffX);
+                var actualY = h-Math.ceil((yn-y0)*h/diffY);
+
+                ctx.lineTo( actualX, actualY );
+
+                ctx.stroke();
+                ctx.closePath();
+
+                cursorX = xn;
+                cursorY = yn;
+            }
+
+            if(d.charAt(i) == '+') cursorA += Math.PI / 4;
+            if(d.charAt(i) == '-') cursorA -= Math.PI / 4;
+        }
+
+
+
+
+        document.getElementById('minX').innerHTML = MIN;
+        document.getElementById('maxX').innerHTML = MAX;
+        document.getElementById('maxY').innerHTML = MAXY;
+        document.getElementById('minY').innerHTML = MINY;
+
+    }
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        init(canvas);
+
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+
+    }
+
+
+</script>
+
+
+</head>
+
+
+<body onload="start()" style="background-color:rgb(150,150,150);">
+
+    <div style="text-align:center; font-size:30px">Diagrama de Feigenbaum</div>
+
+    <input type="button" onclick="reset()" value="Reset" />
+    
+    <br />
+
+    <div id="canvas-container" style="float:left;">
+        <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
+    </div>
+
+    <div id="maxY" style="font-size:30px;"></div>
+    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+
+    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+
+
+</body>
+
+</html>
+
