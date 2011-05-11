@@ -19,6 +19,7 @@
     var escala = 2;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cursorX, cursorY, cursorA = 0;
+    var pi3 = Math.PI/3;
 
     function reset() {
         MIN = -1;
@@ -156,7 +157,7 @@
 
     // forma de generar
     function reglas(c) {
-        if(c == 'F') return "F+F--F+F";
+        if(c == 'F') return document.getElementById('reglas').value;
         if(c == 'f') return 'f';
         if(c == '+') return '+';
         if(c == '-') return '-';
@@ -209,7 +210,7 @@
         var propY = w/diffY;
     
 
-        var s = 'F--F--F';
+        var s = document.getElementById('axiom').value;
         var d = derivar(s);
 
         while(cantF(d) < w/diffX)
@@ -229,7 +230,7 @@
 
                 var xn=cursorX+(10/cantF(d)),yn=cursorY;
                 if(cursorA) {
-                    var arr = rotar(cursorX+(10/cantF(d)),cursorY,cursorX,cursorY, cursorA);
+                    var arr = rotar(xn,yn,cursorX,cursorY, cursorA);
                     xn = arr[0];
                     yn = arr[1];
                 }
@@ -249,8 +250,8 @@
                 cursorY = yn;
             }
 
-            if(ch == '+') cursorA += Math.PI/3;
-            if(ch == '-') cursorA -= Math.PI/3;
+            if(ch == '+') cursorA += pi3;
+            if(ch == '-') cursorA -= pi3;
         }
 
 
@@ -291,6 +292,9 @@
         <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
     </div>
 
+    Axioma<input type="text" id="axiom" style="font-size:30px;" value="F--F--F" />
+    <br/>
+    Regla<input type="text" id="reglas" style="font-size:30px;" value="F+F--F+F" />
     <!--<div id="maxY" style="font-size:30px;"></div>
     <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
 
