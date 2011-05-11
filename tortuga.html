@@ -197,6 +197,7 @@
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
+        cursorA = 0;
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
@@ -208,7 +209,7 @@
         var propY = w/diffY;
     
 
-        var s = 'F';
+        var s = 'F--F--F';
         var d = derivar(s);
 
         while(cantF(d) < w/diffX)
