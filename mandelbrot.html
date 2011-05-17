@@ -76,6 +76,7 @@
 
     function dib(e)
     {
+        alert("dib!");
         dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
@@ -142,8 +143,6 @@
 
             canvas.onmousedown=onButtonDown;
             canvas.onmouseup=onButtonUp;
-            document.getElementById('creal').onchange = dib;
-            document.getElementById('cimag').onchange = dib;
             document.getElementById('iterk').onchange = dib;
 
         } catch (e) {
