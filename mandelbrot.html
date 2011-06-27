@@ -18,6 +18,8 @@
     var ctx;
     var escala = 2;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cols = [];
+    var k;
 
     function reset() {
         MIN = -3;
@@ -27,7 +29,19 @@
         document.getElementById('creal').value = '0.4';
         document.getElementById('cimag').value = '0.0';
         document.getElementById('iterk').value = '60';
+        //init_variables();
         dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+    function init_variables() {
+        k = document.getElementById('iterk').value;
+        for(var i = cols.length; i < k; i++) {
+            var c = new obj;
+            c.r = aleat(255);
+            c.g = aleat(255);
+            c.b = aleat(255);
+            cols[i] = c;
+        }
     }
 
     function handle(delta) {
@@ -57,6 +71,7 @@
                 MINY = yValue - escala*(yValue-MINY);
                 MAXY = MINY + escala*ventanaY;
             }
+            //init_variables();
             dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
@@ -76,7 +91,7 @@
 
     function dib(e)
     {
-        alert("dib!");
+        init_variables();
         dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
@@ -107,6 +122,8 @@
             MAX  = MAX  - (xValue-x);
             MINY = MINY - (yValue-y);
             MAXY = MAXY - (yValue-y);
+
+            //init_variables();
 
             dibujar(ctx,MIN,MAX,MINY,MAXY);
         }
@@ -162,8 +179,16 @@
         return [a*c-b*d,a*d+b*c];
     }
 
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+    function obj() {
+        this.r = this.g = this.b = 0;
+    }
+
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
+        init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
@@ -175,40 +200,42 @@
         var stepY = diffY/h;
 
         var v;
-        var k = document.getElementById('iterk').value;
-
 
         for(var x = x0; x < x1; x += stepX) {
             for(var y = y0; y < y1; y += stepY) {
-                var z = [x,y];
+                var z0 = x;
+                var z1 = y;
 
                 var x2 = x*x;
                 var y2 = y*y;
                 var fin = false;
-                for(var i = 0; i < k; i++) {
-                    if( vabs(z[0],z[1]) > 256 ) {
-                        ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
+                var i;
+                for(i = 0; i < k; i++) {
+                    if( vabs(z0,z1) > 2 ) {
+                        ctx.fillStyle = "rgba("+cols[i].r+", "+cols[i].g+", "+cols[i].b+", 1.0)";
                         fin = true;
                         break;
                     }
+
                     var tempX = x2 - y2 + x;
-                    var tempY = 2 * z[0]*z[1] + y;
+                    var tempY = 2 * z0*z1 + y;
 
                     x2 = tempX * tempX;
                     y2 = tempY * tempY;
-                    z = [tempX, tempY];
+                    z0 = tempX;
+                    z1 = tempY;
                 }
 
                 if(!fin) {
-                    ctx.fillStyle = "rgba(0, 0, 0, 1.0)";
+                    ctx.fillStyle = "rgba("+127+", "+17+", "+98+", 1.0)";
                 }
 
                 var px = Math.ceil((x-x0)*w/diffX);
                 var py = Math.ceil((y-y0)*h/diffY);
                 ctx.fillRect(px,h-py,1,1);
             }
+            
         }
-
         document.getElementById('minX').innerHTML = MIN;
         document.getElementById('maxX').innerHTML = MAX;
         document.getElementById('maxY').innerHTML = MAXY;
@@ -220,6 +247,8 @@
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         init(canvas);
+        //init_variables();
+
 
         dibujar(ctx,MIN,MAX,MINY,MAXY);
 
