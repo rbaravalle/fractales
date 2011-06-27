@@ -18,6 +18,19 @@
     var ctx;
     var escala = 2;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cols = [];
+
+    function init_variables() {
+        k = document.getElementById('iterk').value;
+        for(var i = cols.length; i < k; i++) {
+            var c = new obj;
+            c.r = aleat(255);
+            c.g = aleat(255);
+            c.b = aleat(255);
+            cols[i] = c;
+        }
+    }
+
 
     function reset() {
         MIN = -1;
@@ -163,8 +176,16 @@
         return [a*c-b*d,a*d+b*c];
     }
 
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+    function obj() {
+        this.r = this.g = this.b = 0;
+    }
+
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
+        init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
@@ -191,7 +212,7 @@
                 var fin = false;
                 for(var i = 0; i < k; i++) {
                     if( x2+y2 > R2 ) {
-                        ctx.fillStyle = "rgba(0, 0, 0, 1.0)";
+                        ctx.fillStyle = "rgba("+cols[i].r+", "+cols[i].g+", "+cols[i].b+", 1.0)";
                         fin = true;
                         break;
                     }
@@ -204,7 +225,7 @@
                 }
 
                 if(!fin) {
-                    ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
+                    ctx.fillStyle = "rgba("+127+", "+17+", "+98+", 1.0)";
                 }
 
                 var px = Math.ceil((x-x0)*w/diffX);
