@@ -210,6 +210,7 @@
                 var y2 = y*y;
                 var fin = false;
                 var i;
+
                 for(i = 0; i < k; i++) {
                     if( vabs(z0,z1) > 2 ) {
                         ctx.fillStyle = "rgba("+cols[i].r+", "+cols[i].g+", "+cols[i].b+", 1.0)";
@@ -217,13 +218,12 @@
                         break;
                     }
 
-                    var tempX = x2 - y2 + x;
-                    var tempY = 2 * z0*z1 + y;
+                    var temp = z0
+                    z0 = x2 - y2 + x;
+                    z1 = 2 * temp*z1 + y;
 
-                    x2 = tempX * tempX;
-                    y2 = tempY * tempY;
-                    z0 = tempX;
-                    z1 = tempY;
+                    x2 = z0 * z0;
+                    y2 = z1 * z1;
                 }
 
                 if(!fin) {
