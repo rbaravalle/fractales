@@ -19,6 +19,7 @@
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cols = [];
     var k;
+    var ctxCL, kernel, bufOut, cmdQueue;
 
     function reset() {
         MIN = -3;
@@ -171,6 +172,30 @@
                   "and the WebCL browser extension installed.");
             return false;
         }
+        var platforms = WebCL.getPlatformIDs();
+        ctxCL = WebCL.createContextFromType ([WebCL.CL_CONTEXT_PLATFORM, platforms[0]],
+                                                          WebCL.CL_DEVICE_TYPE_DEFAULT);
+
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        var bufSize = w*h*4; // tamanio en bytes
+        bufOut = ctxCL.createBuffer (WebCL.CL_MEM_WRITE_ONLY, bufSize);
+
+        var kernelSrc = loadKernel("clProgramMandelbrot");
+        var program = ctxCL.createProgramWithSource(kernelSrc);
+        var devices = ctxCL.getContextInfo(WebCL.CL_CONTEXT_DEVICES);
+        try {
+            program.buildProgram ([devices[0]], "");
+        } catch(e) {
+            alert ("Failed to build WebCL program. Error "
+               + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_STATUS)
+               + ":  " + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_LOG));
+          throw e;
+        }
+
+        // Create kernel and set arguments
+        kernel = program.createKernel ("ckMandelbrot");
+        cmdQueue = ctxCL.createCommandQueue (devices[0], 0);
 
     }
 
@@ -211,50 +236,25 @@
 
         var v;
 
-
-        var platforms = WebCL.getPlatformIDs();  
-        var ctxCL = WebCL.createContextFromType ([WebCL.CL_CONTEXT_PLATFORM,
-                platforms[0]], WebCL.CL_DEVICE_TYPE_DEFAULT);
-
-        var bufSize = w*h*4; // tamanio en bytes
-        var bufOut = ctxCL.createBuffer (WebCL.CL_MEM_WRITE_ONLY, bufSize);
-
-        var kernelSrc = loadKernel("clProgramMandelbrot");
-        var program = ctxCL.createProgramWithSource(kernelSrc);
-        var devices = ctxCL.getContextInfo(WebCL.CL_CONTEXT_DEVICES);
-        try {
-            program.buildProgram ([devices[0]], "");
-        } catch(e) {
-            alert ("Failed to build WebCL program. Error "
-               + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_STATUS)
-               + ":  " + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_LOG));
-          throw e;
-        }
-
-        // Create kernel and set arguments
-        var kernel = program.createKernel ("ckMandelbrot");
         kernel.setKernelArg (0, bufOut);
         kernel.setKernelArg (1, w, WebCL.types.UINT);
         kernel.setKernelArg (2, h, WebCL.types.UINT);
         kernel.setKernelArg (3, k, WebCL.types.UINT);
-        kernel.setKernelArg (4, x0, WebCL.types.FLOAT);
-        kernel.setKernelArg (5, x1, WebCL.types.FLOAT);
-        kernel.setKernelArg (6, y0, WebCL.types.FLOAT);
-        kernel.setKernelArg (7, y1, WebCL.types.FLOAT);
+        kernel.setKernelArg (4, x0, WebCL.types.DOUBLE);
+        kernel.setKernelArg (5, x1, WebCL.types.DOUBLE);
+        kernel.setKernelArg (6, y0, WebCL.types.DOUBLE);
+        kernel.setKernelArg (7, y1, WebCL.types.DOUBLE);
 
         // Init ND-range 
         var localWS = [16,4];  
         var globalWS = [Math.ceil (w / localWS[0]) * localWS[0], 
                       Math.ceil (h / localWS[1]) * localWS[1]];
 
-        // Create command queue using the first available device
-        var cmdQueue = ctxCL.createCommandQueue (devices[0], 0);
-
         // Execute (enqueue) kernel
         cmdQueue.enqueueNDRangeKernel(kernel, globalWS.length, [], globalWS, localWS, []);
 
         var dataObject = WebCL.createDataObject ();
-        dataObject.allocate(bufSize);
+        dataObject.allocate(4*w*h);
 
         // Read the result buffer from OpenCL device
         cmdQueue.enqueueReadBuffer (bufOut, false, 0, pixels.data.length, dataObject, []);
@@ -292,25 +292,30 @@
 </script>
 
 <script id="clProgramMandelbrot" type="text/x-opencl">
+#ifdef cl_khr_fp64
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#else
+#pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#endif
   __kernel void ckMandelbrot( __global uchar4* buffer, 
                             unsigned int width,
                             unsigned int height,
                             unsigned int k,
-                            float x0, float x1, float y0, float y1) {
+                            double x0, double x1, double y0, double y1) {
     unsigned int px = get_global_id(0);
     unsigned int py = get_global_id(1);
     if (px >= width || py >= height) return;
 
     // obtenemos el x e y en el zoom establecido a partir
     // de las coordenadas de los pixeles
-    float x = x0 + px*(x1-x0)/width;
-    float y = y1 - py*(y1-y0)/height;
+    double x = x0 + px*(x1-x0)/width;
+    double y = y1 - py*(y1-y0)/height;
     
-    float z0 = x;
-    float z1 = y;
+    double z0 = x;
+    double z1 = y;
 
-    float x2 = x*x;
-    float y2 = y*y;
+    double x2 = x*x;
+    double y2 = y*y;
 
     int i;
 
@@ -322,7 +327,7 @@
             return;
         }
 
-        float temp = z0;
+        double temp = z0;
         z0 = x2 - y2 + x;
         z1 = 2 * temp*z1 + y;
 
