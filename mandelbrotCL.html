@@ -1,0 +1,366 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript">
+
+    var MIN = -3;
+    var MAX = 1;
+    var MINY = -2;
+    var MAXY = 2;
+
+    var STEP = (MAX-MIN)/1000;
+
+    var click;
+    var xPos, yPos;
+    var escala = 4;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cols = [];
+    var k;
+
+    function reset() {
+        MIN = -3;
+        MAX = 1;
+        MINY = -2;
+        MAXY = 2;
+        document.getElementById('creal').value = '0.4';
+        document.getElementById('cimag').value = '0.0';
+        document.getElementById('iterk').value = '60';
+        //init_variables();
+        dibujar(MIN,MAX,MINY,MAXY);
+    }
+
+    function init_variables() {
+        k = document.getElementById('iterk').value;
+        for(var i = cols.length; i < k; i++) {
+            var c = new obj;
+            c.r = aleat(255);
+            c.g = aleat(255);
+            c.b = aleat(255);
+            cols[i] = c;
+        }
+    }
+
+    function handle(delta) {
+
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+
+                MIN = xValue - (xValue-MIN)/escala;
+                MAX = MIN + ventana;
+
+                MINY = yValue - (yValue-MINY)/escala;
+                MAXY = MINY + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MIN = xValue - escala*(xValue-MIN);
+                MAX = MIN + escala*ventana;
+                MINY = yValue - escala*(yValue-MINY);
+                MAXY = MINY + escala*ventanaY;
+            }
+            //init_variables();
+            dibujar(MIN,MAX,MINY,MAXY);
+    }
+
+     
+    function wheel(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }
+            if (delta)
+                    handle(delta);
+    }
+
+    function dib(e)
+    {
+        init_variables();
+        dibujar(MIN,MAX,MINY,MAXY);
+    }
+
+    function findPos(obj) {
+        var curleft = curtop = 0;
+        if (obj.offsetParent) {
+            do {
+                curleft += obj.offsetLeft;
+                curtop += obj.offsetTop;
+            } while (obj = obj.offsetParent);
+            return { x: curleft, y: curtop };
+        }
+    }
+
+    function onMouseMove(e)
+    {
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        if(click) {
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+            
+            MIN  = MIN  - (xValue-x);
+            MAX  = MAX  - (xValue-x);
+            MINY = MINY - (yValue-y);
+            MAXY = MAXY - (yValue-y);
+
+            //init_variables();
+
+            dibujar(MIN,MAX,MINY,MAXY);
+        }
+    }
+
+    function onButtonDown(e)
+    {
+        click = true;
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        document.getElementById('canvas').style.cursor='pointer';
+
+        var diff = MAX-MIN;
+        var diffY = MAXY-MINY;
+        x = MIN + diff*xPos/document.getElementById('canvas').width;
+        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+        
+    }
+
+    function onButtonUp(e)
+    {
+        click = false;
+        document.getElementById('canvas').style.cursor='default';
+    }    
+        
+    function init(canvas) {
+        try {
+            if (canvas.addEventListener)
+                    canvas.addEventListener('DOMMouseScroll', wheel, false);
+            canvas.onmousewheel = wheel;
+            canvas.onmousemove = onMouseMove;
+
+            canvas.onmousedown=onButtonDown;
+            canvas.onmouseup=onButtonUp;
+            document.getElementById('iterk').onchange = dib;
+
+        } catch (e) {
+            alert("Problema con canvas!");
+        }
+
+        if (window.WebCL == undefined) {
+            alert("Unfortunately your system does not support WebCL. " +
+                  "Make sure that you have both the OpenCL driver " +
+                  "and the WebCL browser extension installed.");
+            return false;
+        }
+
+    }
+
+    function f(a,x) {
+        return a*x*(1-x);
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+    function obj() {
+        this.r = this.g = this.b = 0;
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar(x0,x1,y0,y1) {
+        init_variables();
+        var ctx2D = document.getElementById('canvas').getContext("2d");;
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx2D.clearRect ( 0 , 0 , w , h );
+
+        var pixels = ctx2D.getImageData(0, 0, w, h);
+
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        var stepX = diffX/w;
+        var stepY = diffY/h;
+
+        var v;
+
+
+        var platforms = WebCL.getPlatformIDs();  
+        var ctxCL = WebCL.createContextFromType ([WebCL.CL_CONTEXT_PLATFORM,
+                platforms[0]], WebCL.CL_DEVICE_TYPE_DEFAULT);
+
+        var bufSize = w*h*4; // tamanio en bytes
+        var bufOut = ctxCL.createBuffer (WebCL.CL_MEM_WRITE_ONLY, bufSize);
+
+        var kernelSrc = loadKernel("clProgramMandelbrot");
+        var program = ctxCL.createProgramWithSource(kernelSrc);
+        var devices = ctxCL.getContextInfo(WebCL.CL_CONTEXT_DEVICES);
+        try {
+            program.buildProgram ([devices[0]], "");
+        } catch(e) {
+            alert ("Failed to build WebCL program. Error "
+               + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_STATUS)
+               + ":  " + program.getProgramBuildInfo (devices[0], WebCL.CL_PROGRAM_BUILD_LOG));
+          throw e;
+        }
+
+        // Create kernel and set arguments
+        var kernel = program.createKernel ("ckMandelbrot");
+        kernel.setKernelArg (0, bufOut);
+        kernel.setKernelArg (1, w, WebCL.types.UINT);
+        kernel.setKernelArg (2, h, WebCL.types.UINT);
+        kernel.setKernelArg (3, k, WebCL.types.UINT);
+        kernel.setKernelArg (4, x0, WebCL.types.FLOAT);
+        kernel.setKernelArg (5, x1, WebCL.types.FLOAT);
+        kernel.setKernelArg (6, y0, WebCL.types.FLOAT);
+        kernel.setKernelArg (7, y1, WebCL.types.FLOAT);
+
+        // Init ND-range 
+        var localWS = [16,4];  
+        var globalWS = [Math.ceil (w / localWS[0]) * localWS[0], 
+                      Math.ceil (h / localWS[1]) * localWS[1]];
+
+        // Create command queue using the first available device
+        var cmdQueue = ctxCL.createCommandQueue (devices[0], 0);
+
+        // Execute (enqueue) kernel
+        cmdQueue.enqueueNDRangeKernel(kernel, globalWS.length, [], globalWS, localWS, []);
+
+        var dataObject = WebCL.createDataObject ();
+        dataObject.allocate(bufSize);
+
+        // Read the result buffer from OpenCL device
+        cmdQueue.enqueueReadBuffer (bufOut, false, 0, pixels.data.length, dataObject, []);
+        cmdQueue.finish (); //Finish all the operations
+
+        var utils = WebCL.getUtils ();
+        utils.writeDataObjectToTypedArray (dataObject, pixels.data);
+        ctx2D.putImageData (pixels, 0, 0);
+    }
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        ctx2D = canvas.getContext("2d");
+        init(canvas);
+        //init_variables();
+
+        dibujar(MIN,MAX,MINY,MAXY);
+    }
+
+    // WebCL
+
+    function loadKernel(id){
+        var kernelElement = document.getElementById(id);
+        var kernelSource = kernelElement.text;
+        if (kernelElement.src != "") {
+            var mHttpReq = new XMLHttpRequest();
+            mHttpReq.open("GET", kernelElement.src, false);
+            mHttpReq.send(null);
+            kernelSource = mHttpReq.responseText;
+        } 
+        return kernelSource;
+     }
+
+
+</script>
+
+<script id="clProgramMandelbrot" type="text/x-opencl">
+  __kernel void ckMandelbrot( __global uchar4* buffer, 
+                            unsigned int width,
+                            unsigned int height,
+                            unsigned int k,
+                            float x0, float x1, float y0, float y1) {
+    unsigned int px = get_global_id(0);
+    unsigned int py = get_global_id(1);
+    if (px >= width || py >= height) return;
+
+    // obtenemos el x e y en el zoom establecido a partir
+    // de las coordenadas de los pixeles
+    float x = x0 + px*(x1-x0)/width;
+    float y = y1 - py*(y1-y0)/height;
+    
+    float z0 = x;
+    float z1 = y;
+
+    float x2 = x*x;
+    float y2 = y*y;
+
+    int i;
+
+    for(i = 0; i < k; i++) {
+        if( sqrt(z0*z0+z1*z1) > 2 ) {
+            int j = py * width + px;
+            uchar lum = (uchar)(0);
+            buffer[j] = (uchar4)(lum, lum, lum, 255);
+            return;
+        }
+
+        float temp = z0;
+        z0 = x2 - y2 + x;
+        z1 = 2 * temp*z1 + y;
+
+        x2 = z0 * z0;
+        y2 = z1 * z1;
+    }
+    int j = py * width + px;
+    uchar lum = (uchar)(255);
+    buffer[j] = (uchar4)(lum, lum, lum, 255);
+
+}
+</script>    
+
+
+</head>
+
+
+<body onload="start()" style="background-color:rgb(150,150,150);">
+
+    <div style="text-align:center; font-size:30px">Conjunto de Mandelbrot</div>
+
+    <input type="button" onclick="reset()" value="Reset" />
+    Max de iteraciones:<input id="iterk" type="text" value="60" />
+    
+    <br />
+
+    <div id="canvas-container" style="float:left;">
+        <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+    </div>
+
+    <div id="maxY" style="font-size:30px;"></div>
+    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+
+    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+
+
+</body>
+
+</html>
+
