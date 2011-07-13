@@ -11,36 +11,31 @@
     var MINY = -2;
     var MAXY = 2;
 
-    var STEP = (MAX-MIN)/1000;
-
     var click;
     var xPos, yPos;
     var escala = 4;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
-    var cols = [];
     var k;
-    var ctxCL, kernel, bufOut, cmdQueue;
+    var rcol,gcol,bcol;
+
+    var ctxCL, kernel, bufOut, cmdQueue; // variables WebCL
 
     function reset() {
         MIN = -3;
         MAX = 1;
         MINY = -2;
         MAXY = 2;
-        document.getElementById('creal').value = '0.4';
-        document.getElementById('cimag').value = '0.0';
         document.getElementById('iterk').value = '60';
-        //init_variables();
+
         dibujar(MIN,MAX,MINY,MAXY);
     }
 
     function init_variables() {
         k = document.getElementById('iterk').value;
-        for(var i = cols.length; i < k; i++) {
-            var c = new obj;
-            c.r = aleat(255);
-            c.g = aleat(255);
-            c.b = aleat(255);
-            cols[i] = c;
+        if(!rcol) {
+            rcol = aleat(20);
+            gcol = aleat(20);
+            bcol = aleat(20);
         }
     }
 
@@ -71,7 +66,7 @@
                 MINY = yValue - escala*(yValue-MINY);
                 MAXY = MINY + escala*ventanaY;
             }
-            //init_variables();
+
             dibujar(MIN,MAX,MINY,MAXY);
     }
 
@@ -85,8 +80,7 @@
             } else if (event.detail) {
                     delta = -event.detail/3;
             }
-            if (delta)
-                    handle(delta);
+            if (delta) handle(delta);
     }
 
     function dib(e)
@@ -122,8 +116,6 @@
             MAX  = MAX  - (xValue-x);
             MINY = MINY - (yValue-y);
             MAXY = MAXY - (yValue-y);
-
-            //init_variables();
 
             dibujar(MIN,MAX,MINY,MAXY);
         }
@@ -179,8 +171,8 @@
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         var bufSize = w*h*4; // tamanio en bytes
-        bufOut = ctxCL.createBuffer (WebCL.CL_MEM_WRITE_ONLY, bufSize);
 
+        bufOut = ctxCL.createBuffer (WebCL.CL_MEM_WRITE_ONLY, bufSize);
         var kernelSrc = loadKernel("clProgramMandelbrot");
         var program = ctxCL.createProgramWithSource(kernelSrc);
         var devices = ctxCL.getContextInfo(WebCL.CL_CONTEXT_DEVICES);
@@ -196,6 +188,10 @@
         // Create kernel and set arguments
         kernel = program.createKernel ("ckMandelbrot");
         cmdQueue = ctxCL.createCommandQueue (devices[0], 0);
+
+        k = document.getElementById('iterk').value;
+
+
 
     }
 
@@ -237,13 +233,23 @@
         var v;
 
         kernel.setKernelArg (0, bufOut);
-        kernel.setKernelArg (1, w, WebCL.types.UINT);
-        kernel.setKernelArg (2, h, WebCL.types.UINT);
-        kernel.setKernelArg (3, k, WebCL.types.UINT);
-        kernel.setKernelArg (4, x0, WebCL.types.DOUBLE);
-        kernel.setKernelArg (5, x1, WebCL.types.DOUBLE);
-        kernel.setKernelArg (6, y0, WebCL.types.DOUBLE);
-        kernel.setKernelArg (7, y1, WebCL.types.DOUBLE);
+        kernel.setKernelArg (1, rcol, WebCL.types.UINT);
+        kernel.setKernelArg (2, gcol, WebCL.types.UINT);
+        kernel.setKernelArg (3, bcol, WebCL.types.UINT);
+        kernel.setKernelArg (4, w, WebCL.types.UINT);
+        kernel.setKernelArg (5, h, WebCL.types.UINT);
+        kernel.setKernelArg (6, k, WebCL.types.UINT);
+        kernel.setKernelArg (7, x0, WebCL.types.DOUBLE);
+        kernel.setKernelArg (8, x1, WebCL.types.DOUBLE);
+        kernel.setKernelArg (9, y0, WebCL.types.DOUBLE);
+        kernel.setKernelArg (10, y1, WebCL.types.DOUBLE);
+
+        // Write the buffer to OpenCL device memory
+        /*var dataObject = WebCL.createDataObject ();
+        dataObject.allocate(4); // en bytes
+        dataObject.set(cols);
+    
+        cmdQueue.enqueueWriteBuffer (colorsCL, false, 0, dataObject.length, dataObject, []);*/
 
         // Init ND-range 
         var localWS = [16,4];  
@@ -269,7 +275,7 @@
         var canvas = document.getElementById("canvas");
         ctx2D = canvas.getContext("2d");
         init(canvas);
-        //init_variables();
+
 
         dibujar(MIN,MAX,MINY,MAXY);
     }
@@ -297,7 +303,10 @@
 #else
 #pragma OPENCL EXTENSION cl_amd_fp64 : enable
 #endif
-  __kernel void ckMandelbrot( __global uchar4* buffer, 
+  __kernel void ckMandelbrot( __global uchar4* buffer,
+                            unsigned int r,
+                            unsigned int g,
+                            unsigned int b,
                             unsigned int width,
                             unsigned int height,
                             unsigned int k,
@@ -320,10 +329,9 @@
     int i;
 
     for(i = 0; i < k; i++) {
-        if( sqrt(z0*z0+z1*z1) > 2 ) {
+        if( z0*z0+z1*z1 > 4 ) {
             int j = py * width + px;
-            uchar lum = (uchar)(0);
-            buffer[j] = (uchar4)(lum, lum, lum, 255);
+            buffer[j] = (uchar4)((r*(uchar)i)%255, (g*(uchar)i)%255, (b*(uchar)i)%255, 255);
             return;
         }
 
@@ -335,7 +343,7 @@
         y2 = z1 * z1;
     }
     int j = py * width + px;
-    uchar lum = (uchar)(255);
+    uchar lum = (uchar)(0);
     buffer[j] = (uchar4)(lum, lum, lum, 255);
 
 }

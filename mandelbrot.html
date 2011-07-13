@@ -11,12 +11,10 @@
     var MINY = -2;
     var MAXY = 2;
 
-    var STEP = (MAX-MIN)/1000;
-
     var click;
     var xPos, yPos;
     var ctx;
-    var escala = 2;
+    var escala = 4;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cols = [];
     var k;
@@ -26,21 +24,25 @@
         MAX = 1;
         MINY = -2;
         MAXY = 2;
-        document.getElementById('creal').value = '0.4';
-        document.getElementById('cimag').value = '0.0';
         document.getElementById('iterk').value = '60';
-        //init_variables();
+
         dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
     function init_variables() {
         k = document.getElementById('iterk').value;
-        for(var i = cols.length; i < k; i++) {
+        var c = new obj;
+        c.r = aleat(20);
+        c.g = aleat(20);
+        c.b = aleat(20);
+        cols.push(c);
+        var init = cols.length-1;
+        for(var i = init+1; i < k; i++) {
             var c = new obj;
-            c.r = aleat(255);
-            c.g = aleat(255);
-            c.b = aleat(255);
-            cols[i] = c;
+            c.r = cols[i-1].r;
+            c.g = cols[i-1].g;
+            c.b = cols[i-1].b;
+            cols.push(c);
         }
     }
 
@@ -84,7 +86,7 @@
                     if (window.opera) delta = -delta;
             } else if (event.detail) {
                     delta = -event.detail/3;
-            }f
+            }
             if (delta)
                     handle(delta);
     }
@@ -123,8 +125,6 @@
             MINY = MINY - (yValue-y);
             MAXY = MAXY - (yValue-y);
 
-            //init_variables();
-
             dibujar(ctx,MIN,MAX,MINY,MAXY);
         }
     }
@@ -158,8 +158,8 @@
             canvas.onmousewheel = wheel;
             canvas.onmousemove = onMouseMove;
 
-            canvas.onmousedown=onButtonDown;
-            canvas.onmouseup=onButtonUp;
+            //canvas.onmousedown=onButtonDown;
+            //canvas.onmouseup=onButtonUp;
             document.getElementById('iterk').onchange = dib;
 
         } catch (e) {
@@ -188,6 +188,7 @@
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
+        alert("Se comienza el calculo. Por favor espera");
         init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
@@ -213,7 +214,7 @@
 
                 for(i = 0; i < k; i++) {
                     if( vabs(z0,z1) > 2 ) {
-                        ctx.fillStyle = "rgba("+cols[i].r+", "+cols[i].g+", "+cols[i].b+", 1.0)";
+                        ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
                         fin = true;
                         break;
                     }
@@ -227,7 +228,7 @@
                 }
 
                 if(!fin) {
-                    ctx.fillStyle = "rgba("+127+", "+17+", "+98+", 1.0)";
+                    ctx.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
                 }
 
                 var px = Math.ceil((x-x0)*w/diffX);
@@ -240,6 +241,7 @@
         document.getElementById('maxX').innerHTML = MAX;
         document.getElementById('maxY').innerHTML = MAXY;
         document.getElementById('minY').innerHTML = MINY;
+        alert("Se finalizo el calculo");
 
     }
 
@@ -247,8 +249,6 @@
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         init(canvas);
-        //init_variables();
-
 
         dibujar(ctx,MIN,MAX,MINY,MAXY);
 

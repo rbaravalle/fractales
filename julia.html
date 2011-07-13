@@ -11,8 +11,6 @@
     var MINY = -1;
     var MAXY = 1;
 
-    var STEP = (MAX-MIN)/1000;
-
     var click;
     var xPos, yPos;
     var ctx;
@@ -22,12 +20,19 @@
 
     function init_variables() {
         k = document.getElementById('iterk').value;
-        for(var i = cols.length; i < k; i++) {
+
+        var c = new obj;
+        c.r = aleat(20);
+        c.g = aleat(20);
+        c.b = aleat(20);
+        cols.push(c);
+        var init = cols.length-1;
+        for(var i = init+1; i < k; i++) {
             var c = new obj;
-            c.r = aleat(255);
-            c.g = aleat(255);
-            c.b = aleat(255);
-            cols[i] = c;
+            c.r = cols[i-1].r;
+            c.g = cols[i-1].g;
+            c.b = cols[i-1].b;
+            cols.push(c);
         }
     }
 
@@ -39,7 +44,7 @@
         MAXY = 1;
         document.getElementById('creal').value = '0.4';
         document.getElementById('cimag').value = '0.0';
-        document.getElementById('iterk').value = '12';
+        document.getElementById('iterk').value = '120';
         dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
@@ -153,8 +158,8 @@
             canvas.onmousewheel = wheel;
             canvas.onmousemove = onMouseMove;
 
-            canvas.onmousedown=onButtonDown;
-            canvas.onmouseup=onButtonUp;
+            //canvas.onmousedown=onButtonDown;
+            //canvas.onmouseup=onButtonUp;
             document.getElementById('creal').onchange = dib;
             document.getElementById('cimag').onchange = dib;
             document.getElementById('iterk').onchange = dib;
@@ -185,6 +190,7 @@
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
+        alert("Se comienza el calculo. Por favor espera");
         init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
@@ -212,7 +218,7 @@
                 var fin = false;
                 for(var i = 0; i < k; i++) {
                     if( x2+y2 > R2 ) {
-                        ctx.fillStyle = "rgba("+cols[i].r+", "+cols[i].g+", "+cols[i].b+", 1.0)";
+                        ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
                         fin = true;
                         break;
                     }
@@ -225,7 +231,7 @@
                 }
 
                 if(!fin) {
-                    ctx.fillStyle = "rgba("+127+", "+17+", "+98+", 1.0)";
+                    ctx.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
                 }
 
                 var px = Math.ceil((x-x0)*w/diffX);
@@ -238,7 +244,7 @@
         document.getElementById('maxX').innerHTML = MAX;
         document.getElementById('maxY').innerHTML = MAXY;
         document.getElementById('minY').innerHTML = MINY;
-
+        alert("Se finalizo el calculo");
     }
 
     function start() {
@@ -264,19 +270,19 @@
     <input type="button" onclick="reset()" value="Reset" />
     c:<input id="creal" type="text" value="0.4" />
     <input id="cimag" type="text" value="0.0" /> i
-    k:<input id="iterk" type="text" value="12" />
+    k:<input id="iterk" type="text" value="120" />
     
     <br />
 
     <div id="canvas-container" style="float:left;">
-        <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
+        <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
     </div>
 
     <div id="maxY" style="font-size:30px;"></div>
-    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+    <div id="minY" style="font-size:30px; position:absolute; left:520px; top:540px;"></div>
 
-    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
-    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:580px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:500px; top:580px;"></div>
 
 
 </body>
