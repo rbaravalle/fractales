@@ -247,20 +247,23 @@
             for(var x = x0; x < x1; x += stepX) {
                for(var y = y0; y < y1; y += stepY) {
 
-                   var z = vabs(x,y);
+                   /*var z = vabs(x,y);
                    var alpha1;
                    if(x == 0) alpha1 = Math.PI/2;
                    else alpha1 = Math.atan(y/x);
                    var alpha = alpha1 + Math.PI;
                    var xn = Math.sqrt(z*Math.cos(alpha/2));
-                   var yn = Math.sqrt(z*Math.sin(alpha/2));
-                   for(var i = 1; i < k; i++) {
+                   var yn = Math.sqrt(z*Math.sin(alpha/2));*/
+                   var xn = x-cx;
+                   var yn = y-cy;
+                   var alpha1, alpha;
+                   for(var i = 0; i < k; i++) {
                       z = vabs(xn,yn);
-                      if(x == 0) alpha1 = Math.PI/2;
+                      if(xn == 0) alpha1 = Math.PI/2;
                       else alpha1 = Math.atan(yn/xn);
                       var alpha = alpha1 + Math.PI;
-                      xn = Math.sqrt(z*Math.cos(alpha/2));
-                      yn = Math.sqrt(z*Math.sin(alpha/2));
+                      xn = Math.sqrt(z*Math.cos(alpha/2))-cx;
+                      yn = Math.sqrt(z*Math.sin(alpha/2))-cy;
                    }
 
                    var px = Math.ceil((xn-x0)*w/diffX);
