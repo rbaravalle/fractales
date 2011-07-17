@@ -243,17 +243,10 @@
            }
         }
         else {
-            ctx.fillStyle = "rgba(1,1,1, 1.0)";
+            ctx.fillStyle = "rgba(1.0,1.0,1.0, 1.0)";
             for(var x = x0; x < x1; x += stepX) {
                for(var y = y0; y < y1; y += stepY) {
 
-                   /*var z = vabs(x,y);
-                   var alpha1;
-                   if(x == 0) alpha1 = Math.PI/2;
-                   else alpha1 = Math.atan(y/x);
-                   var alpha = alpha1 + Math.PI;
-                   var xn = Math.sqrt(z*Math.cos(alpha/2));
-                   var yn = Math.sqrt(z*Math.sin(alpha/2));*/
                    var xn = x-cx;
                    var yn = y-cy;
                    var alpha1, alpha;
@@ -302,7 +295,7 @@
     <input type="button" onclick="reset()" value="Reset" />
     c:<input id="creal" type="text" value="0.4" />
     <input id="cimag" type="text" value="0.0" /> i
-    k:<input id="iterk" type="text" value="120" />
+    k:<input id="iterk" type="text" value="0" />
     
     <br />
 
