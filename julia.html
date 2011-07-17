@@ -210,36 +210,65 @@
 
         var R = Math.max(vabs(cx,cy),2); // threshold
         var R2 = R*R;
-        for(var x = x0; x < x1; x += stepX) {
-            for(var y = y0; y < y1; y += stepY) {
-                var z = [x,y];
-                var x2 = x*x;
-                var y2 = y*y;
-                var fin = false;
-                for(var i = 0; i < k; i++) {
-                    if( x2+y2 > R2 ) {
-                        ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
-                        fin = true;
-                        break;
-                    }
-                    var tempX = x2 - y2 + cx;
-                    var tempY = 2 * z[0]*z[1] + cy;
+        var inversa = true;
+        if(!inversa) {
+           for(var x = x0; x < x1; x += stepX) {
+               for(var y = y0; y < y1; y += stepY) {
+                   var z = [x,y];
+                   var x2 = x*x;
+                   var y2 = y*y;
+                   var fin = false;
+                   for(var i = 0; i < k; i++) {
+                       if( x2+y2 > R2 ) {
+                           ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
+                           fin = true;
+                           break;
+                       }
+                       var tempX = x2 - y2 + cx;
+                       var tempY = 2 * z[0]*z[1] + cy;
 
-                    x2 = tempX * tempX;
-                    y2 = tempY * tempY;
-                    z = [tempX, tempY];
-                }
+                       x2 = tempX * tempX;
+                       y2 = tempY * tempY;
+                       z = [tempX, tempY];
+                   }
 
-                if(!fin) {
-                    ctx.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
-                }
+                   if(!fin) {
+                       ctx.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
+                   }
 
-                var px = Math.ceil((x-x0)*w/diffX);
-                var py = Math.ceil((y-y0)*h/diffY);
-                ctx.fillRect(px,h-py,1,1);
+                   var px = Math.ceil((x-x0)*w/diffX);
+                   var py = Math.ceil((y-y0)*h/diffY);
+                   ctx.fillRect(px,h-py,1,1);
+               }
+           }
+        }
+        else {
+            ctx.fillStyle = "rgba(1,1,1, 1.0)";
+            for(var x = x0; x < x1; x += stepX) {
+               for(var y = y0; y < y1; y += stepY) {
+
+                   var z = vabs(x,y);
+                   var alpha1;
+                   if(x == 0) alpha1 = Math.PI/2;
+                   else alpha1 = Math.atan(y/x);
+                   var alpha = alpha1 + Math.PI;
+                   var xn = Math.sqrt(z*Math.cos(alpha/2));
+                   var yn = Math.sqrt(z*Math.sin(alpha/2));
+                   for(var i = 1; i < k; i++) {
+                      z = vabs(xn,yn);
+                      if(x == 0) alpha1 = Math.PI/2;
+                      else alpha1 = Math.atan(yn/xn);
+                      var alpha = alpha1 + Math.PI;
+                      xn = Math.sqrt(z*Math.cos(alpha/2));
+                      yn = Math.sqrt(z*Math.sin(alpha/2));
+                   }
+
+                   var px = Math.ceil((xn-x0)*w/diffX);
+                   var py = Math.ceil((yn-y0)*h/diffY);
+                   ctx.fillRect(px,h-py,1,1);
+               }
             }
         }
-
         document.getElementById('minX').innerHTML = MIN;
         document.getElementById('maxX').innerHTML = MAX;
         document.getElementById('maxY').innerHTML = MAXY;
