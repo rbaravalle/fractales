@@ -65,6 +65,11 @@
 
     function handle(delta) {
 
+            var pos = findPos(document.getElementById('canvas'));
+            if(!event) event = window.event;
+            xPos = event.pageX - pos.x;
+            yPos = event.pageY - pos.y;
+
             var diff = MAX-MIN;
             var diffY = MAXY-MINY;
             var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
@@ -125,7 +130,7 @@
 
     function dibJ(e)
     {
-        dibujarJulia(ctxJ,MINJ,MAXJ,MINYJ,MAXYJ);
+        dibujarJulia(MINJ,MAXJ,MINYJ,MAXYJ);
     }
 
      
@@ -155,7 +160,7 @@
 
     function dib(e)
     {
-        dibujar(ctx,MIN,MAX,MINY,MAXY);
+        dibujar(MIN,MAX,MINY,MAXY);
     }
 
     function findPos(obj) {
@@ -171,7 +176,7 @@
 
     function onButtonDown(e)
     {
-        var pos = findPos(this);
+        var pos = findPos(document.getElementById('canvas'));
         xPos = e.pageX - pos.x;
         yPos = e.pageY - pos.y;
 
@@ -179,6 +184,9 @@
         var diffY = MAXYJ-MINYJ;
         x = MINJ + diff*xPos/document.getElementById('canvasJulia').width;
         y = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvasJulia').height;
+        document.getElementById('creal').value = x;
+        document.getElementById('cimag').value = y;
+        dibJ();
         
     }
         
@@ -221,7 +229,7 @@
     }
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
-    function dibujar(ctx,x0,x1,y0,y1) {
+    function dibujar(x0,x1,y0,y1) {
         alert("Se comienza el calculo. Por favor espera");
         init_variables();
         var w = document.getElementById('canvas').width;
@@ -279,7 +287,7 @@
 
     }
 
-function dibujarJulia(ctxJ,x0,x1,y0,y1) {
+function dibujarJulia(x0,x1,y0,y1) {
         alert("Se comienza el calculo de Julia. Por favor espera");
         var w = document.getElementById('canvasJulia').width;
         var h = document.getElementById('canvasJulia').height;
