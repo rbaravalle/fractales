@@ -100,10 +100,15 @@
 
     function handleJulia(delta) {
 
+            var pos = findPos(document.getElementById('canvasJulia'));
+            if(!event) event = window.event;
+            xPos = event.pageX - pos.x;
+            yPos = event.pageY - pos.y;
+
             var diff = MAXJ-MINJ;
             var diffY = MAXYJ-MINYJ;
             var xValue = MINJ + diff*xPos/document.getElementById('canvasJulia').width;
-            var yValue = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvas').height;
+            var yValue = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvasJulia').height;
 
             if(delta > 0) {
                 var ventana = diff/escala;
@@ -180,12 +185,13 @@
         xPos = e.pageX - pos.x;
         yPos = e.pageY - pos.y;
 
-        var diff = MAXJ-MINJ;
-        var diffY = MAXYJ-MINYJ;
-        x = MINJ + diff*xPos/document.getElementById('canvasJulia').width;
-        y = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvasJulia').height;
+        var diff = MAX-MIN;
+        var diffY = MAXY-MINY;
+        x = MIN + diff*xPos/document.getElementById('canvas').width;
+        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvasJulia').height;
         document.getElementById('creal').value = x;
         document.getElementById('cimag').value = y;
+
         dibJ();
         
     }
@@ -198,12 +204,9 @@
                     canvasJ.addEventListener('DOMMouseScroll', wheel, false);
             canvas.onmousewheel = wheel;
             canvasJ.onmousewheel = wheelJ;
-            //canvas.onmousemove = onMouseMove;
-
             canvas.onmousedown=onButtonDown;
-            //canvas.onmouseup=onButtonUp;
-            document.getElementById('iterk').onchange = dib;
 
+            document.getElementById('iterk').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -279,16 +282,17 @@
             }
             
         }
-        document.getElementById('minX').innerHTML = MIN;
-        document.getElementById('maxX').innerHTML = MAX;
-        document.getElementById('maxY').innerHTML = MAXY;
-        document.getElementById('minY').innerHTML = MINY;
+        document.getElementById('minX').innerHTML = MIN.toFixed(2);
+        document.getElementById('maxX').innerHTML = MAX.toFixed(2);
+        document.getElementById('maxY').innerHTML = MAXY.toFixed(2);
+        document.getElementById('minY').innerHTML = MINY.toFixed(2);
         alert("Se finalizo el calculo");
 
     }
 
 function dibujarJulia(x0,x1,y0,y1) {
         alert("Se comienza el calculo de Julia. Por favor espera");
+        init_variables();
         var w = document.getElementById('canvasJulia').width;
         var h = document.getElementById('canvasJulia').height;
         ctxJ.clearRect ( 0 , 0 , w , h );
@@ -316,7 +320,7 @@ function dibujarJulia(x0,x1,y0,y1) {
                         var fin = false;
                         for(var i = 0; i < k; i++) {
                             if( x2+y2 > R2 ) {
-                                ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
+                                ctxJ.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
                                 fin = true;
                                 break;
                             }
@@ -343,7 +347,7 @@ function dibujarJulia(x0,x1,y0,y1) {
             var xc = 0-cx;
             var yc = 0-cy;
             ctxJ.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
-            for(var i = 0; i < 10000; i++) {
+            for(var i = 0; i < 30*w/(MAXJ-MINJ); i++) {
                 if(xc > 0) theta = Math.atan(yc/xc);
                 if(xc == 0) theta = Math.PI/2;
                 if(xc < 0) theta = Math.atan(yc/xc) + Math.PI;
@@ -361,10 +365,10 @@ function dibujarJulia(x0,x1,y0,y1) {
             }
         }
 
-        document.getElementById('minXJ').innerHTML = MINJ;
-        document.getElementById('maxXJ').innerHTML = MAXJ;
-        document.getElementById('maxYJ').innerHTML = MAXYJ;
-        document.getElementById('minYJ').innerHTML = MINYJ;
+        document.getElementById('minXJ').innerHTML = MINJ.toFixed(2);
+        document.getElementById('maxXJ').innerHTML = MAXJ.toFixed(2);
+        document.getElementById('maxYJ').innerHTML = MAXYJ.toFixed(2);
+        document.getElementById('minYJ').innerHTML = MINYJ.toFixed(2);
         alert("Se finalizo el calculo de Julia");
     }
 
@@ -398,9 +402,11 @@ function dibujarJulia(x0,x1,y0,y1) {
 
     <div id="canvas-container" style="float:left;">
     <table>
+    <thead><th>Mandelbrot</th><th></th><th>Juli&aacute;</th></thead>
     <tr>
         <td><input type="button" onclick="reset()" value="Reset" />
         Max de iteraciones:<input id="iterk" type="text" value="60" /></td>
+        <td> </td>
         <td>
         <input type="button" onclick="inversa = true; document.getElementById('metodo').innerHTML ='Iteraci&oacute;n Inversa' " value="It. Inversa" />
         <input type="button" onclick="inversa = false; document.getElementById('metodo').innerHTML ='Preim&aacute;genes'" value="Preim&aacute;genes" />
@@ -408,30 +414,33 @@ function dibujarJulia(x0,x1,y0,y1) {
         <div id ="metodo">Iteraci&oacute;n Inversa</div>
         C semilla:<input id="creal" type="text" value="0.4" /> +
         <input id="cimag" type="text" value="0.0" /> * i<br />
-        Iteraciones Preim&aacute;genes:<input id="iterk" type="text" value="10" />
         </td>
     </tr>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
         </td>
+        <td style="align:top; width: 80px;" >
+        <div id="maxY" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
+        <div id="minY" style="font-size:30px; position:relative; left:0px; top:220px;"></div>
+        </td>
         <td>
             <canvas id="canvasJulia" style="background-color:black; align:right;" width="512" height="512"></canvas>
+        </td>
+        <td>    <div id="maxYJ" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
+    <div id="minYJ" style="font-size:30px; position:relative; left:0px; top:220px;"></div></td>
+    </tr>
+    <tr> 
+        <td><div id="minX" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxX" style="font-size:30px; position:relative; left:450px; top:0px;"></div>
+        </td>
+        <td></td>
+        <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxXJ" style="font-size:30px; position:relative; left:450px; top:0px;"></div>
         </td>
     </tr>
     </table>
     </div>
-
-    <div id="maxY" style="font-size:30px;"></div>
-    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
-
-    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
-    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
-    <div id="maxYJ" style="font-size:30px;"></div>
-    <div id="minYJ" style="font-size:30px; position:absolute; left:520px; top:540px;"></div>
-
-    <div id="minXJ" style="font-size:30px; position:absolute; left:10px; top:580px;"></div>
-    <div id="maxXJ" style="font-size:30px; position:absolute; left:500px; top:580px;"></div>
 
 
 </body>
