@@ -1,0 +1,432 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript">
+
+    var MIN = -3;
+    var MAX = 1;
+    var MINY = -2;
+    var MAXY = 2;
+
+    // Julia
+    var MINJ = -1;
+    var MAXJ = 1;
+    var MINYJ = -1;
+    var MAXYJ = 1;
+
+    var xPos, yPos;
+    var ctx, ctxJ;
+    var escala = 4;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cols = [];
+    var k;
+    var inversa = true;
+    var JULIA = false; // estamos sobre el canvas de julia o no
+
+    function reset() {
+        MIN = -3;
+        MAX = 1;
+        MINY = -2;
+        MAXY = 2;
+        MINJ = -1;
+        MAXJ = 1;
+        MINYJ = -1;
+        MAXYJ = 1;
+        document.getElementById('creal').value = '0.4';
+        document.getElementById('cimag').value = '0.0';
+        document.getElementById('metodo').innerHTML = 'Iteraci&oacute;n Inversa';
+        inversa = true;
+
+        document.getElementById('iterk').value = '60';
+
+        dib();
+        dibJ();
+    }
+
+    function init_variables() {
+        k = document.getElementById('iterk').value;
+        var c = new obj;
+        c.r = aleat(20);
+        c.g = aleat(20);
+        c.b = aleat(20);
+        cols.push(c);
+        var init = cols.length-1;
+        for(var i = init+1; i < k; i++) {
+            var c = new obj;
+            c.r = cols[i-1].r;
+            c.g = cols[i-1].g;
+            c.b = cols[i-1].b;
+            cols.push(c);
+        }
+    }
+
+    function handle(delta) {
+
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+
+                MIN = xValue - (xValue-MIN)/escala;
+                MAX = MIN + ventana;
+
+                MINY = yValue - (yValue-MINY)/escala;
+                MAXY = MINY + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MIN = xValue - escala*(xValue-MIN);
+                MAX = MIN + escala*ventana;
+                MINY = yValue - escala*(yValue-MINY);
+                MAXY = MINY + escala*ventanaY;
+            }
+            dib();
+    }
+
+    function handleJulia(delta) {
+
+            var diff = MAXJ-MINJ;
+            var diffY = MAXYJ-MINYJ;
+            var xValue = MINJ + diff*xPos/document.getElementById('canvasJulia').width;
+            var yValue = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+
+                MINJ = xValue - (xValue-MINJ)/escala;
+                MAXJ = MINJ + ventana;
+
+                MINYJ = yValue - (yValue-MINYJ)/escala;
+                MAXYJ = MINYJ + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MINJ = xValue - escala*(xValue-MINJ);
+                MAXJ = MINJ + escala*ventana;
+                MINYJ = yValue - escala*(yValue-MINYJ);
+                MAXYJ = MINYJ + escala*ventanaY;
+            }
+            dibJ();
+    }
+
+    function dibJ(e)
+    {
+        dibujarJulia(ctxJ,MINJ,MAXJ,MINYJ,MAXYJ);
+    }
+
+     
+    function wheel(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }
+            if (delta) handle(delta);
+    }
+
+    function wheelJ(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }
+            if (delta) handleJulia(delta);
+    }
+
+    function dib(e)
+    {
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+    function findPos(obj) {
+        var curleft = curtop = 0;
+        if (obj.offsetParent) {
+            do {
+                curleft += obj.offsetLeft;
+                curtop += obj.offsetTop;
+            } while (obj = obj.offsetParent);
+            return { x: curleft, y: curtop };
+        }
+    }
+
+    function onButtonDown(e)
+    {
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        var diff = MAXJ-MINJ;
+        var diffY = MAXYJ-MINYJ;
+        x = MINJ + diff*xPos/document.getElementById('canvasJulia').width;
+        y = MINYJ + diffY*(document.getElementById('canvasJulia').height-yPos)/document.getElementById('canvasJulia').height;
+        
+    }
+        
+    function init(canvas, canvasJ) {
+        try {
+            if (canvas.addEventListener)
+                    canvas.addEventListener('DOMMouseScroll', wheel, false);
+            if (canvasJ.addEventListener)
+                    canvasJ.addEventListener('DOMMouseScroll', wheel, false);
+            canvas.onmousewheel = wheel;
+            canvasJ.onmousewheel = wheelJ;
+            //canvas.onmousemove = onMouseMove;
+
+            canvas.onmousedown=onButtonDown;
+            //canvas.onmouseup=onButtonUp;
+            document.getElementById('iterk').onchange = dib;
+
+        } catch (e) {
+            alert("Problema con canvas!");
+        }
+    }
+
+    function f(a,x) {
+        return a*x*(1-x);
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+    function obj() {
+        this.r = this.g = this.b = 0;
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar(ctx,x0,x1,y0,y1) {
+        alert("Se comienza el calculo. Por favor espera");
+        init_variables();
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx.clearRect ( 0 , 0 , w , h );
+
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        var stepX = diffX/w;
+        var stepY = diffY/h;
+
+        var v;
+
+        for(var x = x0; x < x1; x += stepX) {
+            for(var y = y0; y < y1; y += stepY) {
+                var z0 = x;
+                var z1 = y;
+
+                var x2 = x*x;
+                var y2 = y*y;
+                var fin = false;
+                var i;
+
+                for(i = 0; i < k; i++) {
+                    if( vabs(z0,z1) > 2 ) {
+                        ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
+                        fin = true;
+                        break;
+                    }
+
+                    var temp = z0
+                    z0 = x2 - y2 + x;
+                    z1 = 2 * temp*z1 + y;
+
+                    x2 = z0 * z0;
+                    y2 = z1 * z1;
+                }
+
+                if(!fin) {
+                    ctx.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
+                }
+
+                var px = Math.ceil((x-x0)*w/diffX);
+                var py = Math.ceil((y-y0)*h/diffY);
+                ctx.fillRect(px,h-py,1,1);
+            }
+            
+        }
+        document.getElementById('minX').innerHTML = MIN;
+        document.getElementById('maxX').innerHTML = MAX;
+        document.getElementById('maxY').innerHTML = MAXY;
+        document.getElementById('minY').innerHTML = MINY;
+        alert("Se finalizo el calculo");
+
+    }
+
+function dibujarJulia(ctxJ,x0,x1,y0,y1) {
+        alert("Se comienza el calculo de Julia. Por favor espera");
+        var w = document.getElementById('canvasJulia').width;
+        var h = document.getElementById('canvasJulia').height;
+        ctxJ.clearRect ( 0 , 0 , w , h );
+
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        var stepX = diffX/w;
+        var stepY = diffY/h;
+
+        var v;
+        var k = document.getElementById('iterk').value;
+
+        var cx = parseFloat(document.getElementById('creal').value);
+        var cy = parseFloat(document.getElementById('cimag').value);
+
+        var R = Math.max(vabs(cx,cy),2); // threshold
+        var R2 = R*R;
+        if(!inversa) {
+            for(var x = x0; x < x1; x += stepX) {
+                for(var y = y0; y < y1; y += stepY) {
+                        var z = [x,y];
+                        var x2 = x*x;
+                        var y2 = y*y;
+                        var fin = false;
+                        for(var i = 0; i < k; i++) {
+                            if( x2+y2 > R2 ) {
+                                ctx.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
+                                fin = true;
+                                break;
+                            }
+                            var tempX = x2 - y2 + cx;
+                            var tempY = 2 * z[0]*z[1] + cy;
+
+                            x2 = tempX * tempX;
+                            y2 = tempY * tempY;
+                            z = [tempX, tempY];
+                        }
+
+                        if(!fin) {
+                            ctxJ.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
+                        }
+
+                        var px = Math.ceil((x-x0)*w/diffX);
+                        var py = Math.ceil((y-y0)*h/diffY);
+                        ctxJ.fillRect(px,h-py,1,1);
+                }
+            }
+        }
+        else {
+            var theta;
+            var xc = 0-cx;
+            var yc = 0-cy;
+            ctxJ.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
+            for(var i = 0; i < 10000; i++) {
+                if(xc > 0) theta = Math.atan(yc/xc);
+                if(xc == 0) theta = Math.PI/2;
+                if(xc < 0) theta = Math.atan(yc/xc) + Math.PI;
+                theta /= 2;
+                var r = Math.sqrt(xc*xc+yc*yc);
+                if(Math.random() < 0.5) r = Math.sqrt(r); else r = -Math.sqrt(r);
+                var xc = r*Math.cos(theta);
+                var yc = r*Math.sin(theta);
+
+                var px = Math.ceil((xc-x0)*w/diffX);
+                var py = Math.ceil((yc-y0)*h/diffY);
+                ctxJ.fillRect(px,h-py,1,1);
+                xc -= cx;
+                yc -= cy;
+            }
+        }
+
+        document.getElementById('minXJ').innerHTML = MINJ;
+        document.getElementById('maxXJ').innerHTML = MAXJ;
+        document.getElementById('maxYJ').innerHTML = MAXYJ;
+        document.getElementById('minYJ').innerHTML = MINYJ;
+        alert("Se finalizo el calculo de Julia");
+    }
+
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        var canvasJ = document.getElementById("canvasJulia");
+        ctx = canvas.getContext("2d");
+        ctxJ = canvasJ.getContext("2d");
+        init(canvas, canvasJ);
+
+        dib();
+        dibJ();
+
+    }
+
+
+</script>
+
+
+</head>
+
+
+<body onload="start()" style="background-color:rgb(150,150,150);">
+
+    <div style="text-align:center; font-size:30px">Conjuntos de Mandelbrot y Juli&aacute;</div>
+
+    
+    
+    <br />
+
+    <div id="canvas-container" style="float:left;">
+    <table>
+    <tr>
+        <td><input type="button" onclick="reset()" value="Reset" />
+        Max de iteraciones:<input id="iterk" type="text" value="60" /></td>
+        <td>
+        <input type="button" onclick="inversa = true; document.getElementById('metodo').innerHTML ='Iteraci&oacute;n Inversa' " value="It. Inversa" />
+        <input type="button" onclick="inversa = false; document.getElementById('metodo').innerHTML ='Preim&aacute;genes'" value="Preim&aacute;genes" />
+        <input type="button" onclick="dibJ()" value="Calcular" />
+        <div id ="metodo">Iteraci&oacute;n Inversa</div>
+        C semilla:<input id="creal" type="text" value="0.4" /> +
+        <input id="cimag" type="text" value="0.0" /> * i<br />
+        Iteraciones Preim&aacute;genes:<input id="iterk" type="text" value="10" />
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+        <td>
+            <canvas id="canvasJulia" style="background-color:black; align:right;" width="512" height="512"></canvas>
+        </td>
+    </tr>
+    </table>
+    </div>
+
+    <div id="maxY" style="font-size:30px;"></div>
+    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+
+    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
+    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>
+    <div id="maxYJ" style="font-size:30px;"></div>
+    <div id="minYJ" style="font-size:30px; position:absolute; left:520px; top:540px;"></div>
+
+    <div id="minXJ" style="font-size:30px; position:absolute; left:10px; top:580px;"></div>
+    <div id="maxXJ" style="font-size:30px; position:absolute; left:500px; top:580px;"></div>
+
+
+</body>
+
+</html>
+
