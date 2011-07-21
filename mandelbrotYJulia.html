@@ -430,6 +430,9 @@ function dibujarJulia(x0,x1,y0,y1) {
 
     }
 
+function ayuda() {
+    alert("El programa permite explorar los conjuntos de Julia y Mandelbrot.\nHaciendo click en un pixel del conjunto del Mandelbrot, se muestra el conjunto de Julia asociado a su derecha.\nCon el boton medio del mouse se puede hacer zoom en ambos conjuntos.\nAl recargar la pagina se recalculan los colores.\nPara aumentar el detalle, se debe aumentar el parametro max de iteraciones.\nPara utilizar los distintos metodos para calcular los conjuntos de Julia, se debe hacer click en algun metodo y luego se debe presionar el boton Calcular.");
+}
 
 </script>
 
@@ -439,7 +442,7 @@ function dibujarJulia(x0,x1,y0,y1) {
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px">Conjuntos de Mandelbrot y Julia</div>
+    <div style="text-align:center; font-size:30px">Conjuntos de Mandelbrot y Julia <input type="button" value="Ayuda" onclick="ayuda()" /></div>
 
     
     
