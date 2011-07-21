@@ -23,7 +23,9 @@
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cols = [];
     var k;
-    var inversa = true;
+    var inversa = false;
+    var semillas = true;
+    var preimagenes = false;
     var JULIA = false; // estamos sobre el canvas de julia o no
 
     function reset() {
@@ -37,8 +39,10 @@
         MAXYJ = 1;
         document.getElementById('creal').value = '0.4';
         document.getElementById('cimag').value = '0.0';
-        document.getElementById('metodo').innerHTML = 'Iteraci&oacute;n Inversa';
-        inversa = true;
+        document.getElementById('metodo').innerHTML = 'Semillas';
+        inversa = false;
+        preimagenes = false;
+        document.getElementById('preim').value = '5';
 
         document.getElementById('iterk').value = '60';
 
@@ -206,7 +210,7 @@
             canvasJ.onmousewheel = wheelJ;
             canvas.onmousedown=onButtonDown;
 
-            document.getElementById('iterk').onchange = dib;
+            document.getElementById('iterk').onchange = function() { dib(); dibJ(); };
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -233,7 +237,7 @@
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(x0,x1,y0,y1) {
-        alert("Se comienza el calculo. Por favor espera");
+        alert("Se comienza el calculo de Mandelbrot. Por favor espera");
         init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
@@ -286,16 +290,18 @@
         document.getElementById('maxX').innerHTML = MAX.toFixed(2);
         document.getElementById('maxY').innerHTML = MAXY.toFixed(2);
         document.getElementById('minY').innerHTML = MINY.toFixed(2);
-        alert("Se finalizo el calculo");
+        alert("Se finalizo el calculo de Mandelbrot");
 
     }
+
+
 
 function dibujarJulia(x0,x1,y0,y1) {
         alert("Se comienza el calculo de Julia. Por favor espera");
         init_variables();
         var w = document.getElementById('canvasJulia').width;
         var h = document.getElementById('canvasJulia').height;
-        ctxJ.clearRect ( 0 , 0 , w , h );
+
 
         var diffX = x1-x0;
         var diffY = y1-y0;
@@ -311,38 +317,42 @@ function dibujarJulia(x0,x1,y0,y1) {
 
         var R = Math.max(vabs(cx,cy),2); // threshold
         var R2 = R*R;
-        if(!inversa) {
-            for(var x = x0; x < x1; x += stepX) {
+  
+        if(semillas) {
+            ctxJ.clearRect ( 0 , 0 , w , h );
+            for(var x = x0; x < x1; x += stepX)
                 for(var y = y0; y < y1; y += stepY) {
-                        var z = [x,y];
-                        var x2 = x*x;
-                        var y2 = y*y;
-                        var fin = false;
-                        for(var i = 0; i < k; i++) {
-                            if( x2+y2 > R2 ) {
-                                ctxJ.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
-                                fin = true;
-                                break;
-                            }
-                            var tempX = x2 - y2 + cx;
-                            var tempY = 2 * z[0]*z[1] + cy;
-
-                            x2 = tempX * tempX;
-                            y2 = tempY * tempY;
-                            z = [tempX, tempY];
+                    R = Math.max(vabs(x,y),2); // threshold
+                    R2 = R*R;
+                    var z = [x,y];
+                    var x2 = x*x;
+                    var y2 = y*y;
+                    var fin = false;
+                    for(var i = 0; i < k; i++) {
+                        if( x2+y2 > R2 ) {
+                            ctxJ.fillStyle = "rgba("+(cols[i].r*i)%255+", "+(cols[i].g*i)%255+", "+(cols[i].b*i)%255+", 1.0)";
+                            fin = true;
+                            break;
                         }
+                        var tempX = x2 - y2 + cx;
+                        var tempY = 2 * z[0]*z[1] + cy;
 
-                        if(!fin) {
-                            ctxJ.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
-                        }
+                        x2 = tempX * tempX;
+                        y2 = tempY * tempY;
+                        z = [tempX, tempY];
+                    }
 
-                        var px = Math.ceil((x-x0)*w/diffX);
-                        var py = Math.ceil((y-y0)*h/diffY);
-                        ctxJ.fillRect(px,h-py,1,1);
+                    if(!fin) {
+                        ctxJ.fillStyle = "rgba("+0+", "+0+", "+0+", 1.0)";
+                    }
+
+                    var px = Math.ceil((x-x0)*w/diffX);
+                    var py = Math.ceil((y-y0)*h/diffY);
+                    ctxJ.fillRect(px,h-py,1,1);
                 }
-            }
         }
-        else {
+        else { // inversa
+            ctxJ.clearRect ( 0 , 0 , w , h );
             var theta;
             var xc = 0-cx;
             var yc = 0-cy;
@@ -362,6 +372,41 @@ function dibujarJulia(x0,x1,y0,y1) {
                 ctxJ.fillRect(px,h-py,1,1);
                 xc -= cx;
                 yc -= cy;
+            }
+        }
+
+      if(semillas && preimagenes) {
+            ctxJ.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
+            var cantP = parseFloat(document.getElementById('preim').value);
+            var steps = 50000;
+            for(a = 0; a < steps; a++) {
+                var x = 2*Math.cos(2*Math.PI*a/steps);
+                var y = 2*Math.sin(2*Math.PI*a/steps);
+                var theta;
+                var xc = x-cx;
+                var yc = y-cy;
+                for(var i = 0; i < cantP; i++) {
+                    if(xc > 0) theta = Math.atan(yc/xc);
+                    if(xc == 0) theta = Math.PI/2;
+                    if(xc < 0) theta = Math.atan(yc/xc) + Math.PI;
+                    theta /= 2;
+                    var r = Math.sqrt(xc*xc+yc*yc);
+                    r = Math.sqrt(r);
+                    if(Math.random() < 0.5) r = -r;
+                    var xc = r*Math.cos(theta);
+                    var yc = r*Math.sin(theta);
+
+                    var px = Math.ceil((xc-x0)*w/diffX);
+                    var py = Math.ceil((yc-y0)*h/diffY);
+                    ctxJ.fillRect(px,h-py,1,1);
+                    
+                    px = Math.ceil((-xc-x0)*w/diffX);
+                    py = Math.ceil((-yc-y0)*h/diffY);
+                    ctxJ.fillRect(px,h-py,1,1);
+
+                    xc -= cx;
+                    yc -= cy;
+                }
             }
         }
 
@@ -394,7 +439,7 @@ function dibujarJulia(x0,x1,y0,y1) {
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px">Conjuntos de Mandelbrot y Juli&aacute;</div>
+    <div style="text-align:center; font-size:30px">Conjuntos de Mandelbrot y Julia</div>
 
     
     
@@ -402,18 +447,20 @@ function dibujarJulia(x0,x1,y0,y1) {
 
     <div id="canvas-container" style="float:left;">
     <table>
-    <thead><th>Mandelbrot</th><th></th><th>Juli&aacute;</th></thead>
+    <thead><th>Mandelbrot</th><th></th><th>Julia</th></thead>
     <tr>
         <td><input type="button" onclick="reset()" value="Reset" />
         Max de iteraciones:<input id="iterk" type="text" value="60" /></td>
         <td> </td>
         <td>
-        <input type="button" onclick="inversa = true; document.getElementById('metodo').innerHTML ='Iteraci&oacute;n Inversa' " value="It. Inversa" />
-        <input type="button" onclick="inversa = false; document.getElementById('metodo').innerHTML ='Preim&aacute;genes'" value="Preim&aacute;genes" />
+        <input type="button" onclick="inversa = true; preimagenes = false; semillas = false; document.getElementById('metodo').innerHTML ='Iteraci&oacute;n Inversa' " value="Iteraci&oacute;n Inversa" />
+        <input type="button" onclick="preimagenes = !preimagenes; if(preimagenes) { document.getElementById('metodo').innerHTML ='Semillas + Preim&aacute;genes'; semillas = true; inversa = false;} else { document.getElementById('metodo').innerHTML ='Semillas'; semillas = true; inversa = false;}" value="Preim&aacute;genes" />
+        <input type="button" onclick="preimagenes = false; semillas = true; inversa = false; document.getElementById('metodo').innerHTML ='Semillas'" value="Semillas" />
         <input type="button" onclick="dibJ()" value="Calcular" />
-        <div id ="metodo">Iteraci&oacute;n Inversa</div>
+        <div id ="metodo" style="">Semillas</div>
         C semilla:<input id="creal" type="text" value="0.4" /> +
         <input id="cimag" type="text" value="0.0" /> * i<br />
+        Cantidad de Preim&aacute;genes <input id="preim" type="text" value="5" /><br />
         </td>
     </tr>
     <tr>
@@ -432,11 +479,11 @@ function dibujarJulia(x0,x1,y0,y1) {
     </tr>
     <tr> 
         <td><div id="minX" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
-        <div id="maxX" style="font-size:30px; position:relative; left:450px; top:0px;"></div>
+        <div id="maxX" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
         </td>
         <td></td>
         <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
-        <div id="maxXJ" style="font-size:30px; position:relative; left:450px; top:0px;"></div>
+        <div id="maxXJ" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
         </td>
     </tr>
     </table>
