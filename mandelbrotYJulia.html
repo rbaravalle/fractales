@@ -27,6 +27,7 @@
     var semillas = true;
     var preimagenes = false;
     var JULIA = false; // estamos sobre el canvas de julia o no
+    var event = 1;
 
     function reset() {
         MIN = -3;
@@ -69,11 +70,6 @@
 
     function handle(delta) {
 
-            var pos = findPos(document.getElementById('canvas'));
-            if(!event) event = window.event;
-            xPos = event.pageX - pos.x;
-            yPos = event.pageY - pos.y;
-
             var diff = MAX-MIN;
             var diffY = MAXY-MINY;
             var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
@@ -103,11 +99,6 @@
     }
 
     function handleJulia(delta) {
-
-            var pos = findPos(document.getElementById('canvasJulia'));
-            if(!event) event = window.event;
-            xPos = event.pageX - pos.x;
-            yPos = event.pageY - pos.y;
 
             var diff = MAXJ-MINJ;
             var diffY = MAXYJ-MINYJ;
@@ -146,6 +137,9 @@
     function wheel(event){
             var delta = 0;
             if (!event) event = window.event;
+            var pos = findPos(document.getElementById('canvas'));
+            xPos = event.pageX - pos.x;
+            yPos = event.pageY - pos.y;
             if (event.wheelDelta) {
                     delta = event.wheelDelta/120;
                     if (window.opera) delta = -delta;
@@ -158,6 +152,9 @@
     function wheelJ(event){
             var delta = 0;
             if (!event) event = window.event;
+            var pos = findPos(document.getElementById('canvasJulia'));
+            xPos = event.pageX - pos.x;
+            yPos = event.pageY - pos.y;
             if (event.wheelDelta) {
                     delta = event.wheelDelta/120;
                     if (window.opera) delta = -delta;
@@ -205,7 +202,7 @@
             if (canvas.addEventListener)
                     canvas.addEventListener('DOMMouseScroll', wheel, false);
             if (canvasJ.addEventListener)
-                    canvasJ.addEventListener('DOMMouseScroll', wheel, false);
+                    canvasJ.addEventListener('DOMMouseScroll', wheelJ, false);
             canvas.onmousewheel = wheel;
             canvasJ.onmousewheel = wheelJ;
             canvas.onmousedown=onButtonDown;
