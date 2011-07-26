@@ -1,0 +1,225 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript">
+
+    var MIN = -3;
+    var MAX = 3;
+    var MINY = -3;
+    var MAXY = 3;
+
+    var ctx;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cols = [];
+    var k;
+
+    var fs = [function(x) { return [x[0]*x[0]-x[1]*x[1]+1,2*x[0]*x[1]+1]; }]
+
+    var cantS;
+    var cantIt;
+
+    var maxcoord = 512;
+    var dT = 0.01; // delta T en los metodos numericos
+
+
+    function reset() {
+        MIN = -3;
+        MAX = 3;
+        MINY = -3;
+        MAXY = 3;
+
+        document.getElementById('cantIt').value = '60';
+        document.getElementById('cantS').value = '60';
+
+        dib();
+    }
+
+    function init_variables() {
+        k = document.getElementById('cantIt').value;
+        var c = new obj;
+        c.r = aleat(255);
+        c.g = aleat(255);
+        c.b = aleat(255);
+        cols.push(c);
+        var init = cols.length-1;
+        for(var i = init+1; i < k; i++) {
+            var c = new obj;
+            c.r = cols[i-1].r;
+            c.g = cols[i-1].g;
+            c.b = cols[i-1].b;
+            cols.push(c);
+        }
+        cantS = parseFloat(document.getElementById('cantS').value);
+        cantIt = parseFloat(document.getElementById('cantIt').value);
+    }
+
+ 
+
+    function dib(e)
+    {
+        dibujar(MIN,MAX,MINY,MAXY);
+    }
+
+       
+    function init(canvas) {
+        try {
+             document.getElementById('cantIt').onchange = function() { dib(); };
+             document.getElementById('cantS').onchange = function() { dib(); };
+        } catch (e) {
+            alert("Problema con canvas!");
+        }
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+    function aleatN(x) {
+        return Math.floor((Math.random()*2-1))*aleat(x);
+    }
+
+    function obj() {
+        this.r = this.g = this.b = 0;
+    }
+
+    // multiplica un vector con un escalar
+    function multV(x,e) {
+        return [x[0]*e,x[1]*e];
+    }
+
+    // suma dos vectores
+    function sumarV(x,y) {
+        return [x[0]+y[0],x[1]+y[1]]
+    }
+
+    function runge_kutta(x,factual) {
+        var res = [];
+        var k1 = multV(fs[factual](x),dT);
+        var k2 = multV(fs[factual](sumarV(x,multV(k1,1/2))),dT);
+        var k3 = multV(fs[factual](sumarV(x,multV(k2,1/2))),dT);
+        var k4 = multV(fs[factual](sumarV(x,k3)),dT);
+        var res = sumarV(k1,sumarV(multV(k2,2), sumarV(multV(k3,2), k4)));
+
+        return sumarV(x, multV(res,1/6));
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar(x0,x1,y0,y1) {     
+        init_variables();
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx.clearRect ( 0 , 0 , w , h );
+
+
+
+        var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        var stepX = diffX/w;
+        var stepY = diffY/h;
+
+        var v;
+
+        // siguiente iteracion
+        var x = [];
+        ctx.strokeStyle = "rgb("+cols[0].r+","+cols[0].g+","+cols[0].b+")";
+        for(var i = 0; i < cantS; i++) {            
+            ctx.beginPath();
+
+            x[0] = Math.random()*x1*2-x1;
+            x[1] = Math.random()*y1*2-y1;
+
+            px = Math.ceil((x[0]-x0)*w/diffX);
+            py = Math.ceil((x[1]-y0)*h/diffY);
+            ctx.moveTo(px,h-py);
+            for(var j = 0; j < cantIt; j++) {
+
+                x = runge_kutta(x,0);
+
+                px = Math.ceil((x[0]-x0)*w/diffX);
+                py = Math.ceil((x[1]-y0)*h/diffY);
+
+                ctx.lineTo(px,h-py);
+                ctx.stroke();
+                ctx.moveTo(px,h-py);
+            }
+            ctx.closePath();
+        }
+
+        document.getElementById('minX').innerHTML = MIN.toFixed(2);
+        document.getElementById('maxX').innerHTML = MAX.toFixed(2);
+        document.getElementById('maxY').innerHTML = MAXY.toFixed(2);
+        document.getElementById('minY').innerHTML = MINY.toFixed(2);
+
+    }
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        init(canvas);
+
+        dib();
+    }
+
+    function ayuda() {
+        alert("");
+    }
+
+</script>
+
+
+</head>
+
+
+<body onload="start()" style="background-color:rgb(150,150,150);">
+
+    <div style="text-align:center; font-size:30px">Sistemas Din&aacute;micos Continuos <input type="button" value="Ayuda" onclick="ayuda()" /></div>
+
+    <div id="canvas-container" style="float:left;">
+    
+    <br />
+
+    <div id="canvas-container" style="align:center;">
+    <table >
+    <thead><th>AA</th></thead>
+    <tr>
+        <td><input type="button" onclick="reset()" value="Reset" /></td></tr>
+        <tr><td>Max de iteraciones:<input id="cantIt" type="text" value="60" /></td></tr>
+        <tr><td>Semillas:<input id="cantS" type="text" value="60" /></tr>
+    <tr>
+        <td>
+            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+        <td style="align:top; width: 80px;" >
+        <div id="maxY" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
+        <div id="minY" style="font-size:30px; position:relative; left:0px; top:220px;"></div>
+        </td>
+    </tr>
+    <tr> 
+        <td><div id="minX" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxX" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
+        </td>
+        <td></td>
+        <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxXJ" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
+        </td>
+    </tr>
+    </table>
+    </div>
+
+
+</body>
+
+</html>
+
