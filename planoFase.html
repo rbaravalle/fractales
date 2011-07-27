@@ -12,11 +12,11 @@
     var MAXY = 3;
 
     var ctx;
-    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cols = [];
     var k;
 
-    var fs = [function(x) { return [x[0]*x[0]-x[1]*x[1]+1,2*x[0]*x[1]+1]; }]
+    var fs = [function(x) { return [x[0]*x[0]-x[1]*x[1]+1,2*x[0]*x[1]+1]; },
+    function(x) { return [x[0]+Math.pow(Math.E,-x[1]), -x[1]]; }]
 
     var cantS;
     var cantIt;
@@ -68,6 +68,8 @@
         try {
              document.getElementById('cantIt').onchange = function() { dib(); };
              document.getElementById('cantS').onchange = function() { dib(); };
+             document.getElementById('sembrado').onchange = function() { dib(); };
+             document.getElementById('ecuacion').onchange = function() { dib(); };
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -132,36 +134,57 @@
         var v;
 
         // siguiente iteracion
-        var x = [];
         ctx.strokeStyle = "rgb("+cols[0].r+","+cols[0].g+","+cols[0].b+")";
-        for(var i = 0; i < cantS; i++) {            
-            ctx.beginPath();
 
-            x[0] = Math.random()*x1*2-x1;
-            x[1] = Math.random()*y1*2-y1;
+        var semillas = [];
+        if(parseFloat(document.getElementById('sembrado').value) == 1) {
+            var stepx = diffX/(cantS/8);
+            var stepy = diffY/(cantS/8);
+            for(var i = x0; i < x1; i+=stepx)
+                for(var j = y0; j < y1; j+=stepy) {
+                    var px = Math.ceil((i-x0)*w/diffX);
+                    var py = Math.ceil((j-y0)*h/diffY);
+                    semillas.push([i,j]);
+                }
+        }
+        else {
+            for(var i = 0; i < cantS; i++) {
+                semillas.push([Math.random()*x1*2-x1,Math.random()*y1*2-y1]);
+            }
+        }
 
-            px = Math.ceil((x[0]-x0)*w/diffX);
-            py = Math.ceil((x[1]-y0)*h/diffY);
-            ctx.moveTo(px,h-py);
-            for(var j = 0; j < cantIt; j++) {
+        for(var j = 0; j < cantIt; j++) {
+            for(var i = 0; i < semillas.length; i++) { 
+                var x = [];           
+                ctx.beginPath();
 
-                x = runge_kutta(x,0);
+                x.push(semillas[i][0]);
+                x.push(semillas[i][1]);
+
+                px = Math.ceil((x[0]-x0)*w/diffX);
+                py = Math.ceil((x[1]-y0)*h/diffY);
+                ctx.moveTo(px,h-py);
+
+                x = runge_kutta(x,document.getElementById('ecuacion').value);
 
                 px = Math.ceil((x[0]-x0)*w/diffX);
                 py = Math.ceil((x[1]-y0)*h/diffY);
 
                 ctx.lineTo(px,h-py);
                 ctx.stroke();
-                ctx.moveTo(px,h-py);
-            }
-            ctx.closePath();
+                ctx.closePath();
+                //ctx.moveTo(px,h-py);
+
+                semillas[i][0] = x[0];
+                semillas[i][1] = x[1];
+
+            } alert('');
         }
 
         document.getElementById('minX').innerHTML = MIN.toFixed(2);
         document.getElementById('maxX').innerHTML = MAX.toFixed(2);
         document.getElementById('maxY').innerHTML = MAXY.toFixed(2);
         document.getElementById('minY').innerHTML = MINY.toFixed(2);
-
     }
 
     function start() {
@@ -186,17 +209,26 @@
 
     <div style="text-align:center; font-size:30px">Sistemas Din&aacute;micos Continuos <input type="button" value="Ayuda" onclick="ayuda()" /></div>
 
-    <div id="canvas-container" style="float:left;">
-    
-    <br />
-
     <div id="canvas-container" style="align:center;">
     <table >
-    <thead><th>AA</th></thead>
     <tr>
         <td><input type="button" onclick="reset()" value="Reset" /></td></tr>
         <tr><td>Max de iteraciones:<input id="cantIt" type="text" value="60" /></td></tr>
         <tr><td>Semillas:<input id="cantS" type="text" value="60" /></tr>
+        <tr><td>
+           Ecuacion: 
+           <select id="ecuacion">
+                <option value=0 selected >x' = x^2 - y^2 + 1, y' = 2xy + 1</option>
+                <option value=1 >x' = x * e^(-y), y' = -y </option>
+           </select></td>
+        </tr>
+        <tr><td>
+           Sembrado: 
+           <select id="sembrado">
+                <option value=0 selected >Aleatorio</option>
+                <option value=1 >Uniforme</option>
+           </select></td>
+        </tr>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
