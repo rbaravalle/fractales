@@ -15,14 +15,15 @@
     var cols = [];
     var k;
 
-    var fs = [function(x) { return [x[0]*x[0]-x[1]*x[1]+1,2*x[0]*x[1]+1]; },
-    function(x) { return [x[0]+Math.pow(Math.E,-x[1]), -x[1]]; }]
+    var fs = [function(v) { var x = v[0]; var y = v[1]; return [x*x-y*y+1,2*x*y+1]; },
+    function(v) { var x = v[0]; var y = v[1]; return [//x[0]+Math.pow(Math.E,-x[1]), -x[1]
+        -y-0.1*x*(x*x+y*y), x-0.1*y*(x*x+y*y)]; }]
 
     var cantS;
     var cantIt;
 
     var maxcoord = 512;
-    var dT = 0.01; // delta T en los metodos numericos
+    var dT; // delta T en los metodos numericos
 
 
     function reset() {
@@ -54,6 +55,7 @@
         }
         cantS = parseFloat(document.getElementById('cantS').value);
         cantIt = parseFloat(document.getElementById('cantIt').value);
+        dT = parseFloat(document.getElementById('dt').value);
     }
 
  
@@ -70,6 +72,7 @@
              document.getElementById('cantS').onchange = function() { dib(); };
              document.getElementById('sembrado').onchange = function() { dib(); };
              document.getElementById('ecuacion').onchange = function() { dib(); };
+             document.getElementById('dt').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -214,7 +217,8 @@
     <tr>
         <td><input type="button" onclick="reset()" value="Reset" /></td></tr>
         <tr><td>Max de iteraciones:<input id="cantIt" type="text" value="60" /></td></tr>
-        <tr><td>Semillas:<input id="cantS" type="text" value="60" /></tr>
+        <tr><td>Semillas:<input id="cantS" type="text" value="60" /></td></tr>
+        <tr><td>Diferencial:<input id="dt" type="text" value="0.05" /></td></tr>
         <tr><td>
            Ecuacion: 
            <select id="ecuacion">
