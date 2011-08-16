@@ -10,6 +10,7 @@
     var MAX = 3;
     var MINY = -3;
     var MAXY = 3;
+    var iteracion;
 
     var ctx;
     var cols = [];
@@ -31,6 +32,7 @@
         MAX = 3;
         MINY = -3;
         MAXY = 3;
+        iteracion = 0;
 
         document.getElementById('cantIt').value = '60';
         document.getElementById('cantS').value = '60';
@@ -56,6 +58,7 @@
         cantS = parseFloat(document.getElementById('cantS').value);
         cantIt = parseFloat(document.getElementById('cantIt').value);
         dT = parseFloat(document.getElementById('dt').value);
+        iteracion = document.getElementById('iteracion').value;
     }
 
  
@@ -73,6 +76,7 @@
              document.getElementById('sembrado').onchange = function() { dib(); };
              document.getElementById('ecuacion').onchange = function() { dib(); };
              document.getElementById('dt').onchange = dib;
+             document.getElementById('iteracion').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -110,6 +114,7 @@
 
     function runge_kutta(x,factual) {
         var res = [];
+        if(iteracion == 1) dT = -dT; // inversa
         var k1 = multV(fs[factual](x),dT);
         var k2 = multV(fs[factual](sumarV(x,multV(k1,1/2))),dT);
         var k3 = multV(fs[factual](sumarV(x,multV(k2,1/2))),dT);
@@ -181,7 +186,7 @@
                 semillas[i][0] = x[0];
                 semillas[i][1] = x[1];
 
-            } alert('');
+            }
         }
 
         document.getElementById('minX').innerHTML = MIN.toFixed(2);
@@ -220,6 +225,14 @@
         <tr><td>Semillas:<input id="cantS" type="text" value="60" /></td></tr>
         <tr><td>Diferencial:<input id="dt" type="text" value="0.05" /></td></tr>
         <tr><td>
+           Tipo de Iteraci&oacute;n: 
+           <select id="iteracion">
+                <option value=0 selected >Normal</option>
+                <option value=1 >Inversa</option>
+                <option value=2 >Mixta</option>
+           </select></td>
+        </tr>
+        <tr><td>
            Ecuacion: 
            <select id="ecuacion">
                 <option value=0 selected >x' = x^2 - y^2 + 1, y' = 2xy + 1</option>
@@ -235,7 +248,7 @@
         </tr>
     <tr>
         <td>
-            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+            <canvas id="canvas" style="background-color:black; float:left;" width="512" height="512"></canvas>
         </td>
         <td style="align:top; width: 80px;" >
         <div id="maxY" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
