@@ -13,6 +13,7 @@
     var iteracion;
     var textura;
     var lic;
+    var data;
 
     var ctx;
     var cols = [];
@@ -70,16 +71,16 @@
        
     function init(canvas) {
         try {
-             document.getElementById('cantIt').onchange = function() { dib(); };
-             document.getElementById('cantS').onchange = function() { dib(); };
-             document.getElementById('sembrado').onchange = function() { dib(); };
-             document.getElementById('ecuacion').onchange = function() { dib(); };
+             document.getElementById('cantIt').onchange = dib;
+             document.getElementById('cantS').onchange = dib;
+             document.getElementById('sembrado').onchange = dib;
+             document.getElementById('ecuacion').onchange = dib;
              document.getElementById('dt').onchange = dib;
              document.getElementById('iteracion').onchange = dib;
+             document.getElementById('tipo').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
-        init_textura();
     }
 
     function vabs(x,y) {
@@ -158,6 +159,7 @@
 
         var x = [];
         if(lic == 0) {
+            var px, py;
             for(var j = 0; j < cantIt; j++) {
                 for(var i = 0; i < semillas.length; i++) { 
                     ctx.beginPath();
@@ -190,9 +192,6 @@
                             x = runge_kutta(x,factual,dT);
                         }
                     }
-
-                    var x0l = px;
-                    var y0l = h-py;
 
                     px = Math.ceil((x[0]-x0)*w/diffX);
                     py = Math.ceil((x[1]-y0)*h/diffY);
@@ -310,19 +309,29 @@
     function init_textura() {
         textura = [];
         for(var i = 0; i < maxcoord2 ; i++)
-            textura[i] = {'r': Math.random(), 'g': Math.random(), 'b': Math.random()};
+            textura[i] = {'r': data[i*4]/255, 'g': data[i*4+1]/255, 'b': data[i*4+2]/255};
     }
 
     function start() {
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         init(canvas);
+        imagen('/home/rodrigo/fractales/image.jpg');
+        init_textura();
 
         dib();
     }
 
     function ayuda() {
         alert("");
+    }
+
+    function imagen(src) {
+        var img = new Image(); 
+        img.src = src; 
+        ctx.drawImage(img, 0, 0);
+
+        data = ctx.getImageData(0, 0, maxcoord, maxcoord).data;
     }
 
 </script>
@@ -371,6 +380,7 @@
                 <option value=1 >LIC</option>
            </select></td>
         </tr>
+        <tr><td>><input type="file" id="image" name="image"> </td></tr>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black; float:left;" width="512" height="512"></canvas>
@@ -388,6 +398,12 @@
         <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
         <div id="maxXJ" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
         </td>
+    </tr>
+    <tr>
+        <td>
+            <canvas id="canvas2" style="background-color:black; float:left;" width="512" height="512"></canvas>
+        </td>
+    <td></td>
     </tr>
     </table>
     </div>
