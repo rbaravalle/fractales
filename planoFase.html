@@ -11,6 +11,8 @@
     var MINY = -3;
     var MAXY = 3;
     var iteracion;
+    var textura;
+    var lic;
 
     var ctx;
     var cols = [];
@@ -23,6 +25,7 @@
     var cantIt;
 
     var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
     var dT; // delta T en los metodos numericos
 
 
@@ -40,6 +43,7 @@
     }
 
     function init_variables() {
+        lic = 1;
         k = document.getElementById('cantIt').value;
         var c = new obj;
         c.r = aleat(255);
@@ -60,13 +64,9 @@
         iteracion = document.getElementById('iteracion').value;
     }
 
- 
-
-    function dib(e)
-    {
+    function dib(e) {
         dibujar(MIN,MAX,MINY,MAXY);
     }
-
        
     function init(canvas) {
         try {
@@ -79,6 +79,7 @@
         } catch (e) {
             alert("Problema con canvas!");
         }
+        init_textura();
     }
 
     function vabs(x,y) {
@@ -111,7 +112,7 @@
         return [x[0]+y[0],x[1]+y[1]]
     }
 
-    function runge_kutta_core(x,factual,dT) {
+    function runge_kutta(x,factual,dT) {
         var res = [];
         var k1 = multV(fs[factual](x),dT);
         var k2 = multV(fs[factual](sumarV(x,multV(k1,1/2))),dT);
@@ -122,18 +123,12 @@
         return sumarV(x, multV(res,1/6));
     }
 
-    //function runge_kutta(x,factual,modo) {
-
-    //}
-
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(x0,x1,y0,y1) {     
         init_variables();
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
-
-
 
         var diffX = x1-x0;
         var diffY = y1-y0;
@@ -152,59 +147,111 @@
             var stepy = diffY/(cantS/8);
             for(var i = x0; i < x1; i+=stepx)
                 for(var j = y0; j < y1; j+=stepy) {
-                    var px = Math.ceil((i-x0)*w/diffX);
-                    var py = Math.ceil((j-y0)*h/diffY);
                     semillas.push([i,j]);
                 }
         }
         else {
             for(var i = 0; i < cantS; i++) {
-                semillas.push([Math.random()*x1*2-x1,Math.random()*y1*2-y1]);
+                semillas.push(([Math.random()*x1*2-x1,Math.random()*y1*2-y1]));
             }
         }
 
-        for(var j = 0; j < cantIt; j++) {
-            for(var i = 0; i < semillas.length; i++) { 
-                var x = [];           
-                ctx.beginPath();
+        var x = [];
+        if(!lic) {
+            for(var j = 0; j < cantIt; j++) {
+                for(var i = 0; i < semillas.length; i++) { 
+                    ctx.beginPath();
 
-                x.push(semillas[i][0]);
-                x.push(semillas[i][1]);
+                    x[0] = semillas[i][0];
+                    x[1] = semillas[i][1];
 
-                var factual = document.getElementById('ecuacion').value;
-                // normal
-                if(iteracion == 0) {
+                    var factual = document.getElementById('ecuacion').value;
+                    // normal
+                    if(iteracion == 0) {
+                        px = Math.ceil((x[0]-x0)*w/diffX);
+                        py = Math.ceil((x[1]-y0)*h/diffY);
+                        ctx.moveTo(px,h-py);
+                        x = runge_kutta(x,factual,dT);
+                    }
+                    else {
+                        if(iteracion == 1) {
+                            px = Math.ceil((x[0]-x0)*w/diffX);
+                            py = Math.ceil((x[1]-y0)*h/diffY);
+                            ctx.moveTo(px,h-py);
+                            // inversa
+                            x = runge_kutta(x,factual,-dT);
+                        }
+                        else { // mixta
+                            for(var k = 0; k < 5; k++)
+                                x = runge_kutta(x,factual,-dT);
+                            px = Math.ceil((x[0]-x0)*w/diffX);
+                            py = Math.ceil((x[1]-y0)*h/diffY);
+                            ctx.moveTo(px,h-py);
+                            x = runge_kutta(x,factual,dT);
+                        }
+                    }
+
+                    var x0l = px;
+                    var y0l = h-py;
+
                     px = Math.ceil((x[0]-x0)*w/diffX);
                     py = Math.ceil((x[1]-y0)*h/diffY);
-                    ctx.moveTo(px,h-py);
-                    x = runge_kutta_core(x,factual,dT);
-                }
-                else {
-                    if(iteracion == 1) {
-                        px = Math.ceil((x[0]-x0)*w/diffX);
-                        py = Math.ceil((x[1]-y0)*h/diffY);
-                        ctx.moveTo(px,h-py);
-                        // inversa
-                        x = runge_kutta_core(x,factual,-dT);
-                    }
-                    else { // mixta
-                        for(var k = 0; k < 5; k++)
-                            x = runge_kutta_core(x,factual,-dT);
-                        px = Math.ceil((x[0]-x0)*w/diffX);
-                        py = Math.ceil((x[1]-y0)*h/diffY);
-                        ctx.moveTo(px,h-py);
-                        x = runge_kutta_core(x,factual,dT);
-                    }
-                }
+                    ctx.lineTo(px,h-py);
 
-                px = Math.ceil((x[0]-x0)*w/diffX);
-                py = Math.ceil((x[1]-y0)*h/diffY);
-                ctx.lineTo(px,h-py);
+                    var x1 = px;
+                    var y1 = h-py;
 
-                ctx.stroke();
-                ctx.closePath();
-                semillas[i][0] = x[0];
-                semillas[i][1] = x[1];
+                    ctx.stroke();
+                    ctx.closePath();
+                    semillas[i][0] = x[0];
+                    semillas[i][1] = x[1];
+                }
+            }
+        }
+        else {
+            for(var i = 0; i < maxcoord; i++) {
+                for(var j = 0; j < maxcoord; j++) {
+                    x[0] = i*stepX+x0;
+                    x[1] = j*stepY+y0;
+
+                    var factual = document.getElementById('ecuacion').value;
+                    // normal
+                    if(iteracion == 0) {
+                        px = i//Math.ceil((x[0]-x0)*w/diffX);
+                        py = j//Math.ceil((x[1]-y0)*h/diffY);
+                        x = runge_kutta(x,factual,dT);
+                    }
+                    else {
+                        if(iteracion == 1) {
+                            px = i//Math.ceil((x[0]-x0)*w/diffX);
+                            py = j//Math.ceil((x[1]-y0)*h/diffY);
+                            // inversa
+                            x = runge_kutta(x,factual,-dT);
+                        }
+                        else { // mixta
+                            for(var k = 0; k < 5; k++)
+                                x = runge_kutta(x,factual,-dT);
+                            px = Math.ceil((x[0]-x0)*w/diffX);
+                            py = Math.ceil((x[1]-y0)*h/diffY);
+                            x = runge_kutta(x,factual,dT);
+                        }
+                    }
+
+                    var x0l = px;
+                    var y0l = h-py;
+
+                    px = Math.ceil((x[0]-x0)*w/diffX);
+                    py = Math.ceil((x[1]-y0)*h/diffY);
+
+                    var x1 = px;
+                    var y1 = h-py;
+                    if(x0l > 0 && y0l > 0 && x0l < maxcoord && y0l < maxcoord
+                        && x1 > 0 && y1 > 0 && x1 < maxcoord && y1 < maxcoord) {
+                        var prom = dda(x0l,y0l,x1,y1);
+                        ctx.fillStyle = "rgba("+prom[0]+","+prom[1]+","+prom[2]+",1.0)";
+                        ctx.fillRect(i,j,1,1); // se dibuja el ultimo pixel
+                    }
+                }
             }
         }
 
@@ -214,21 +261,30 @@
         document.getElementById('minY').innerHTML = MINY.toFixed(2);
     }
 
-    // Dibuja una linea entre los puntos especificados
+    // calcula los pixeles de la linea entre los puntos especificados
     function dda(x0,y0,x1,y1) {
         var dx = x1-x0;
         var dy = y1-y0;
 
         var x = x0;
         var y = y0;
-        ctx.fillStyle = "rgba(255,255,255,1.0)";
+        var acumr = 0;
+        var acumg = 0;
+        var acumb = 0;
+        var c = 0;
 
         if(Math.abs(dx) > Math.abs(dy)) {
             if(dx>=0) inc = 1; else inc =-1;
             var m = dy/dx;
             if(dx < 0 && dy < 0) m = -m;
             while(x != x1) {
-                ctx.fillRect(Math.round(x),Math.round(y),1,1);
+                var pos = Math.round(x)+maxcoord*Math.round(y);
+                if(textura[pos]) {
+                    acumr += textura[pos].r;
+                    acumg += textura[pos].g;
+                    acumb += textura[pos].b;
+                    c++;
+                }
                 x+=inc;
                 y+=m;
             }
@@ -238,11 +294,25 @@
             var m = dx/dy;
             if(dx < 0 && dy < 0) m = -m;
             while(y != y1) {
-                ctx.fillRect(Math.round(x),Math.round(y),1,1);
+                var pos = Math.round(x)+maxcoord*Math.round(y);
+                if(textura[pos]) {
+                    acumr += textura[pos].r;
+                    acumg += textura[pos].g;
+                    acumb += textura[pos].b;
+                    c++;
+                }
                 y+=inc;
                 x+=m;
             }
         }
+        var k = 255/c
+        return [Math.floor(acumr*k),Math.floor(acumg*k),Math.floor(acumb*k)];
+    }
+
+    function init_textura() {
+        textura = [];
+        for(var i = 0; i < maxcoord2 ; i++)
+            textura[i] = {'r': Math.random(), 'g': Math.random(), 'b': Math.random()};
     }
 
     function start() {
