@@ -309,29 +309,30 @@
     function init_textura() {
         textura = [];
         for(var i = 0; i < maxcoord2 ; i++)
-            textura[i] = {'r': data[i*4]/255, 'g': data[i*4+1]/255, 'b': data[i*4+2]/255};
+            textura[i] = {'r': data[i*4]/255 || 0, 'g': data[i*4+1]/255 || 0, 'b': data[i*4+2]/255 || 0};
     }
 
     function start() {
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         init(canvas);
-        imagen('/home/rodrigo/fractales/image.jpg');
-        init_textura();
-
-        dib();
+        imagen();
     }
 
     function ayuda() {
         alert("");
     }
 
-    function imagen(src) {
+    function imagen() {
         var img = new Image(); 
-        img.src = src; 
+        img.src = document.getElementById('image').files[0].name; 
         ctx.drawImage(img, 0, 0);
 
+        data = [];
         data = ctx.getImageData(0, 0, maxcoord, maxcoord).data;
+        init_textura();
+
+        dib();
     }
 
 </script>
@@ -380,7 +381,7 @@
                 <option value=1 >LIC</option>
            </select></td>
         </tr>
-        <tr><td>><input type="file" id="image" name="image"> </td></tr>
+        <tr><td><input type="button" value="Cargar" onclick="imagen()" /><input type="file" id="image" name="image"> </td></tr>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black; float:left;" width="512" height="512"></canvas>
@@ -398,12 +399,6 @@
         <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
         <div id="maxXJ" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
         </td>
-    </tr>
-    <tr>
-        <td>
-            <canvas id="canvas2" style="background-color:black; float:left;" width="512" height="512"></canvas>
-        </td>
-    <td></td>
     </tr>
     </table>
     </div>
