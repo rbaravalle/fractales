@@ -181,8 +181,6 @@
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
 
-
-
         var diffX = x1-x0;
         var diffY = y1-y0;
 
@@ -192,7 +190,9 @@
         var v;
 
         // siguiente iteracion
-        ctx.strokeStyle = "rgb("+cols[0].r+","+cols[0].g+","+cols[0].b+")";
+        ctx.fillStyle = "rgb("+cols[0].r+","+cols[0].g+","+cols[0].b+")";
+
+        
 
         var semillas = [];
    
