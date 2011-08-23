@@ -25,6 +25,7 @@
 
     var maxcoord = 512;
     var dT; // delta T en los metodos numericos
+    var H, addition;
 
 
     function reset() {
@@ -41,9 +42,11 @@
 
     function init_variables() {
         X = [];
-        for(var i = 0; i < maxcoord; i++) {
+        H = parseFloat(document.getElementById('H').value);
+        addition = document.getElementById('addition').value;
+        for(var i = 0; i < maxcoord+1; i++) {
             X[i] = [];
-            for(var j = 0; j < maxcoord; j++)
+            for(var j = 0; j < maxcoord+1; j++)
                 X[i][j] = 0;
         }
     }
@@ -78,65 +81,60 @@
     function MidPointFM2D(addition, H, maxlevel) {
 
        var N = Math.pow(2,maxlevel);       
-       var sigma = 0.2; // ??
+       var sigma = 0.5; // ??
        var delta = sigma;
        X[0][0] = delta*gauss();
-       X[0][maxcoord-1] = delta*gauss();
-       X[maxcoord-1][0] = delta*gauss();
-       X[maxcoord-1][maxcoord-1] = delta*gauss();
+       X[0][N] = delta*gauss();
+       X[N][0] = delta*gauss();
+       X[N][N] = delta*gauss();
 
        var D = N;
        var d = N/2;
 
        for(var stage = 1; stage < maxlevel; stage++) {
            delta *= Math.pow(0.5, 0.5*H);
-           for(var x = d; x < N-d; x+=D) {
-              for(var y = d; y < N-d; y+=D) {
+           for(var x = d; x <= N-d; x+=D) {
+              for(var y = d; y <= N-d; y+=D) {
                   X[x][y] = f4(delta, X[x+d][x+d], X[x+d][y-d], X[x-d][y+d], X[x-d][y-d]);
               }
            }
 
           if(addition) {
-              for(var x = 0; x < N; x++)
-                  for(var y = 0; y < N; y++)
+              for(var x = 0; x <= N; x++)
+                  for(var y = 0; y <= N; y++)
                       X[x][y] += delta*gauss();
           }
 
           delta *= Math.pow(0.5,0.5*H);
 
-          for(var x = d; x < N-d; x++) {
+          for(var x = d; x < N-d; x+=D) {
               X[x][0] = f3(delta,X[x+d][0],X[x-d][0],X[x][d]);
-              X[x][N-1] = f3(delta,X[x+d][N-1],X[x-d][N-1],X[x][N-1-d]);
+              X[x][N] = f3(delta,X[x+d][N],X[x-d][N],X[x][N-d]);
               X[0][x] = f3(delta,X[0][x+d],X[0][x-d],X[d][x]);
-              X[N-1][x] = f3(delta,X[N-1][x+d],X[N-1][x-d],X[N-1-d][x]);
+              X[N][x] = f3(delta,X[N][x+d],X[N][x-d],X[N-d][x]);
           }
 
-          for(var x = d; x < N-d; x+=D)
-              for(var y = D; y < N-d; y+=D)
+          for(var x = d; x <= N-d; x+=D)
+              for(var y = D; y <= N-d; y+=D)
                  X[x][y] = f4(delta, X[x][y+d], X[x][y-d], X[x+d][y], X[x-d][y]);
 
-          for(var x = D; x < N-1-d; x+=D)
-              for(var y = d; y < N-1-d; y+=D)
+          for(var x = D; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
                  X[x][y] = f4(delta, X[x][y+d], X[x][y-d], X[x+d][y], X[x-d][y]);
                   
           if(addition) {
-
-              for(var x = 0; x < N; x+=D)
-                  for(var y = 0; y < N; y+=D) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D) {
                       X[x][y] += delta*gauss();
                   }
-
-              for(var x = d; x < N-d; x+=D)
+              for(var x = d; x <= N-d; x+=D)
                   for(var y = d; y < N-d; y+=D) {
                       X[x][y] += delta*gauss();
                   }
           }
-
           D *= 0.5;
           d *= 0.5;
-
      }  
-
 
     }
 
@@ -150,6 +148,8 @@
        
     function init(canvas) {
         try {
+            document.getElementById('addition').onchange = dib;
+            document.getElementById('H').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -191,17 +191,22 @@
 
         var v;
 
-        MidPointFM2D(1,0.4,9);
+        MidPointFM2D(addition,H,9);
 
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
-                var r = Math.floor(X[i][j]*255); var g,b;
-                g = r;
-                if(r < 0) { r = 0; g = 0; b = 255;}
-                if(r>0) { r = 190; g = 200; b = 0; }
+        var mmax = 0;
+        var mmin = 100000;
+        for(var i = 0; i < maxcoord+1; i++)
+            for(var j = 0; j < maxcoord+1; j++) {
+                var r = Math.floor(X[i][j]*100); var g,b;
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 0) { g = b = r; }
+                if(r > 255) r = g = b = 255;
                 ctx.fillStyle = "rgba("+r+","+g+","+b+", 1.0)";
                 ctx.fillRect(i,j,1,1);
+                if(X[i][j] > mmax) mmax = X[i][j];
+                if(X[i][j] < mmin) mmin = X[i][j];
             }
+        alert(mmax + " " + mmin);
     }
 
     function start() {
@@ -229,6 +234,18 @@
     <div id="canvas-container" style="align:center;">
     <table >
       
+    <tr>
+        <td>
+            H: <input type="text" value="0.5" id="H" />
+        </td>
+        <td>
+            Agregar ruido: 
+           <select id="addition">
+                <option value=true selected >Si</option>
+                <option value=false >No</option>
+           </select></td>
+        </td>
+    </tr>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
