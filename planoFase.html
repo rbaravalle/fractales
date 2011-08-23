@@ -10,19 +10,23 @@
     var MAX = 3;
     var MINY = -3;
     var MAXY = 3;
+    var iteracion;
+    var textura;
+    var lic;
+    var data;
 
     var ctx;
     var cols = [];
     var k;
 
     var fs = [function(v) { var x = v[0]; var y = v[1]; return [x*x-y*y+1,2*x*y+1]; },
-    function(v) { var x = v[0]; var y = v[1]; return [//x[0]+Math.pow(Math.E,-x[1]), -x[1]
-        -y-0.1*x*(x*x+y*y), x-0.1*y*(x*x+y*y)]; }]
+    function(v) { var x = v[0]; var y = v[1]; return [-y-0.1*x*(x*x+y*y), x-0.1*y*(x*x+y*y)]; }]
 
     var cantS;
     var cantIt;
 
     var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
     var dT; // delta T en los metodos numericos
 
 
@@ -31,6 +35,7 @@
         MAX = 3;
         MINY = -3;
         MAXY = 3;
+        iteracion = 0;
 
         document.getElementById('cantIt').value = '60';
         document.getElementById('cantS').value = '60';
@@ -39,6 +44,7 @@
     }
 
     function init_variables() {
+        lic = document.getElementById('tipo').value;
         k = document.getElementById('cantIt').value;
         var c = new obj;
         c.r = aleat(255);
@@ -56,23 +62,22 @@
         cantS = parseFloat(document.getElementById('cantS').value);
         cantIt = parseFloat(document.getElementById('cantIt').value);
         dT = parseFloat(document.getElementById('dt').value);
+        iteracion = document.getElementById('iteracion').value;
     }
 
- 
-
-    function dib(e)
-    {
+    function dib(e) {
         dibujar(MIN,MAX,MINY,MAXY);
     }
-
        
     function init(canvas) {
         try {
-             document.getElementById('cantIt').onchange = function() { dib(); };
-             document.getElementById('cantS').onchange = function() { dib(); };
-             document.getElementById('sembrado').onchange = function() { dib(); };
-             document.getElementById('ecuacion').onchange = function() { dib(); };
+             document.getElementById('cantIt').onchange = dib;
+             document.getElementById('cantS').onchange = dib;
+             document.getElementById('sembrado').onchange = dib;
+             document.getElementById('ecuacion').onchange = dib;
              document.getElementById('dt').onchange = dib;
+             document.getElementById('iteracion').onchange = dib;
+             document.getElementById('tipo').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -108,7 +113,7 @@
         return [x[0]+y[0],x[1]+y[1]]
     }
 
-    function runge_kutta(x,factual) {
+    function runge_kutta(x,factual,dT) {
         var res = [];
         var k1 = multV(fs[factual](x),dT);
         var k2 = multV(fs[factual](sumarV(x,multV(k1,1/2))),dT);
@@ -125,8 +130,6 @@
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
-
-
 
         var diffX = x1-x0;
         var diffY = y1-y0;
@@ -145,43 +148,115 @@
             var stepy = diffY/(cantS/8);
             for(var i = x0; i < x1; i+=stepx)
                 for(var j = y0; j < y1; j+=stepy) {
-                    var px = Math.ceil((i-x0)*w/diffX);
-                    var py = Math.ceil((j-y0)*h/diffY);
                     semillas.push([i,j]);
                 }
         }
         else {
             for(var i = 0; i < cantS; i++) {
-                semillas.push([Math.random()*x1*2-x1,Math.random()*y1*2-y1]);
+                semillas.push(([Math.random()*x1*2-x1,Math.random()*y1*2-y1]));
             }
         }
 
-        for(var j = 0; j < cantIt; j++) {
-            for(var i = 0; i < semillas.length; i++) { 
-                var x = [];           
-                ctx.beginPath();
+        var x = [];
+        if(lic == 0) {
+            var px, py;
+            for(var j = 0; j < cantIt; j++) {
+                for(var i = 0; i < semillas.length; i++) { 
+                    ctx.beginPath();
 
-                x.push(semillas[i][0]);
-                x.push(semillas[i][1]);
+                    x[0] = semillas[i][0];
+                    x[1] = semillas[i][1];
 
-                px = Math.ceil((x[0]-x0)*w/diffX);
-                py = Math.ceil((x[1]-y0)*h/diffY);
-                ctx.moveTo(px,h-py);
+                    var factual = document.getElementById('ecuacion').value;
+                    // normal
+                    if(iteracion == 0) {
+                        px = Math.ceil((x[0]-x0)*w/diffX);
+                        py = Math.ceil((x[1]-y0)*h/diffY);
+                        ctx.moveTo(px,h-py);
+                        x = runge_kutta(x,factual,dT);
+                    }
+                    else {
+                        if(iteracion == 1) {
+                            px = Math.ceil((x[0]-x0)*w/diffX);
+                            py = Math.ceil((x[1]-y0)*h/diffY);
+                            ctx.moveTo(px,h-py);
+                            // inversa
+                            x = runge_kutta(x,factual,-dT);
+                        }
+                        else { // mixta
+                            for(var k = 0; k < 5; k++)
+                                x = runge_kutta(x,factual,-dT);
+                            px = Math.ceil((x[0]-x0)*w/diffX);
+                            py = Math.ceil((x[1]-y0)*h/diffY);
+                            ctx.moveTo(px,h-py);
+                            x = runge_kutta(x,factual,dT);
+                        }
+                    }
 
-                x = runge_kutta(x,document.getElementById('ecuacion').value);
+                    px = Math.ceil((x[0]-x0)*w/diffX);
+                    py = Math.ceil((x[1]-y0)*h/diffY);
+                    ctx.lineTo(px,h-py);
 
-                px = Math.ceil((x[0]-x0)*w/diffX);
-                py = Math.ceil((x[1]-y0)*h/diffY);
+                    var x1 = px;
+                    var y1 = h-py;
 
-                ctx.lineTo(px,h-py);
-                ctx.stroke();
-                ctx.closePath();
-                //ctx.moveTo(px,h-py);
+                    ctx.stroke();
+                    ctx.closePath();
+                    semillas[i][0] = x[0];
+                    semillas[i][1] = x[1];
+                }
+            }
+        }
+        else {
+            var v0 = [];
+            var v1 = [];
+            var v2 = [];
+            for(var i = 0; i < maxcoord; i++) {
+                for(var j = 0; j < maxcoord; j++) {
+                    v0[0] = i*stepX+x0;
+                    v0[1] = j*stepY+y0;
+                    var factual = document.getElementById('ecuacion').value;
 
-                semillas[i][0] = x[0];
-                semillas[i][1] = x[1];
+                    // iteracion normal e inversa
+                    v1 = runge_kutta(v0,factual,dT);
+                    v2 = runge_kutta(v0,factual,-dT);
 
-            } alert('');
+                    var p2x = Math.ceil((v2[0]-x0)*w/diffX);
+                    var p2y = Math.ceil((v2[1]-y0)*h/diffY);
+
+                    var p1x = Math.ceil((v1[0]-x0)*w/diffX);
+                    var p1y = Math.ceil((v1[1]-y0)*h/diffY);
+
+                    var pts = dda(i,j,p2x,p2y);
+                    var pts2 = dda(i,j,p1x,p1y)
+                    var r,g,b;
+                    r = g = b = 0;
+                    for(var k = 0; k < pts.length; k++) {
+                        var pos = pts[k][0]+pts[k][1]*maxcoord;
+                        r += textura[pos].r;
+                        g += textura[pos].g;
+                        b += textura[pos].b;
+                    }
+                    for(var k = 0; k < pts2.length; k++) {
+                        var pos = pts2[k][0]+pts2[k][1]*maxcoord;
+                        r += textura[pos].r;
+                        g += textura[pos].g;
+                        b += textura[pos].b;
+                    }
+                    var k = 255/(pts.length+pts2.length);
+                    r = Math.floor(r*k);
+                    g = Math.floor(g*k);
+                    b = Math.floor(b*k);
+                    if(r>255) r = 255;
+                    if(g>255) g = 255;
+                    if(b>255) b = 255
+                    if(r<0) r = 0;;
+                    if(g<0) g = 0;
+                    if(b<0) b = 0;
+                    ctx.fillStyle ="rgba("+r+","+g+","+b+",1.0)";
+                    ctx.fillRect(i,h-j,1,1);
+                }
+            }
         }
 
         document.getElementById('minX').innerHTML = MIN.toFixed(2);
@@ -190,16 +265,74 @@
         document.getElementById('minY').innerHTML = MINY.toFixed(2);
     }
 
+    // calcula los pixeles de la linea entre los puntos especificados
+    function dda(x0,y0,x1,y1) {
+        var dx = x1-x0;
+        var dy = y1-y0;
+
+        var x = x0;
+        var y = y0;
+        var c = 0;
+        var res = [];
+
+        if(Math.abs(dx) > Math.abs(dy)) {
+            if(dx>=0) inc = 1; else inc =-1;
+            var m = dy/dx;
+            if(dx < 0 && dy < 0) m = -m;
+            while(x != x1) {
+                var pos = Math.round(x)+maxcoord*Math.round(y);
+                if(textura[pos]) {
+                    res.push([Math.round(x),Math.round(y)]);
+                }
+                else break;
+                x+=inc;
+                y+=m;
+            }
+        }
+        else {
+            if(dy>=0) inc = 1; else inc = -1;
+            var m = dx/dy;
+            if(dx < 0 && dy < 0) m = -m;
+            while(y != y1) {
+                var pos = Math.round(x)+maxcoord*Math.round(y);
+                if(textura[pos]) {
+                    res.push([Math.round(x),Math.round(y)]);
+                }
+                else break;
+                y+=inc;
+                x+=m;
+            }
+        }
+        return res;
+    }
+
+    function init_textura() {
+        textura = [];
+        for(var i = 0; i < maxcoord2 ; i++)
+            textura[i] = {'r': data[i*4]/255 || 0, 'g': data[i*4+1]/255 || 0, 'b': data[i*4+2]/255 || 0};
+    }
+
     function start() {
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         init(canvas);
-
-        dib();
+        imagen();
     }
 
     function ayuda() {
         alert("");
+    }
+
+    function imagen() {
+        var img = new Image(); 
+        img.src = document.getElementById('image').files[0].name; 
+        ctx.drawImage(img, 0, 0);
+
+        data = [];
+        data = ctx.getImageData(0, 0, maxcoord, maxcoord).data;
+        init_textura();
+
+        dib();
     }
 
 </script>
@@ -220,6 +353,14 @@
         <tr><td>Semillas:<input id="cantS" type="text" value="60" /></td></tr>
         <tr><td>Diferencial:<input id="dt" type="text" value="0.05" /></td></tr>
         <tr><td>
+           Tipo de Iteraci&oacute;n: 
+           <select id="iteracion">
+                <option value=0 selected >Normal</option>
+                <option value=1 >Inversa</option>
+                <option value=2 >Mixta</option>
+           </select></td>
+        </tr>
+        <tr><td>
            Ecuacion: 
            <select id="ecuacion">
                 <option value=0 selected >x' = x^2 - y^2 + 1, y' = 2xy + 1</option>
@@ -233,9 +374,17 @@
                 <option value=1 >Uniforme</option>
            </select></td>
         </tr>
+        <tr><td>
+           Tipo:
+           <select id="tipo">
+                <option value=0 selected >Trayectorias</option>
+                <option value=1 >LIC</option>
+           </select></td>
+        </tr>
+        <tr><td><input type="button" value="Cargar" onclick="imagen()" /><input type="file" id="image" name="image"> </td></tr>
     <tr>
         <td>
-            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+            <canvas id="canvas" style="background-color:black; float:left;" width="512" height="512"></canvas>
         </td>
         <td style="align:top; width: 80px;" >
         <div id="maxY" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
