@@ -189,10 +189,17 @@
 
         var v;
 
+        MidPointFM2D(0,2.3,2);
+
         // siguiente iteracion
         ctx.fillStyle = "rgb("+cols[0].r+","+cols[0].g+","+cols[0].b+")";
 
-        
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                var v = Math.floor(X[i][j]*255);
+                ctx.fillStyle = "rgb("+v+","+v+","+v+")";
+                ctx.fillRect(i,j,1,1);
+            }
 
         var semillas = [];
    
