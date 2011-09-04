@@ -25,10 +25,7 @@
 
     var maxcoord = 512;
     var dT; // delta T en los metodos numericos
-    var H, addition;
-    var GaussFac;
-    var GaussAdd;
-    var Nrand;
+    var H,addition,modo,GaussFac,GaussAdd,Nrand;
 
 
     function reset() {
@@ -47,6 +44,7 @@
         X = [];
         H = parseFloat(document.getElementById('H').value);
         addition = document.getElementById('addition').value;
+        modo = document.getElementById('modo').value;
         for(var i = 0; i < maxcoord+1; i++) {
             X[i] = [];
             for(var j = 0; j < maxcoord+1; j++)
@@ -59,7 +57,7 @@
     }
 
     function init_gauss() {
-        var Arand = 1//Math.pow(2,31)-1;
+        var Arand = 1
         var GaussAdd = Math.sqrt(3*Nrand);
         var GaussFac = 2*GaussAdd/(Nrand*Arand);
         return [GaussFac,GaussAdd];
@@ -199,12 +197,26 @@
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 0) { g = b = r; }
                 if(r > 255) r = g = b = 255;
-                if(r < 50) {b=3*r; r = 0; g = 0;}
-                else { if(r < 100) {g = r; r = 0; b = 0;}
-                else { if(r > 150) {g = b = r;} else {g = 100; b = 0;} } }
-                ctx.fillStyle = "rgba("+r+","+g+","+b+", 1.0)";
+                var c = mapear(modo,r,g,b);
+                ctx.fillStyle = "rgba("+c[0]+","+c[1]+","+c[2]+", 1.0)";
                 ctx.fillRect(i,j,1,1);
             }
+    }
+
+    function mapear(modo,r,g,b) {
+        if(modo == 1) { // terrenos
+            if(r < 50) {b=3*r; r = 0; g = 0;}
+            else { if(r < 100) {g = r; r = 0; b = 0;}
+            else { if(r > 150) {g = b = r;} else {g = 100; b = 0;} } }
+        }
+        else { // nubes
+            if(modo != 2) {
+                b = 255;
+                if(r < 100) {r = 0; g = 0;}
+                else { if(r < 100) {g = r = Math.floor((r-100)/100);} }
+            }
+        }
+        return [r,g,b];
     }
 
     function start() {
@@ -234,16 +246,20 @@
       
     <tr>
         <td>
-            H: <input type="text" value="0.5" id="H" />
-        </td>
-        <td>
+            H (dimensi&oacute;n fractal): <input type="text" value="0.5" id="H" size=5 />
             Agregar ruido: 
            <select id="addition">
                 <option value=true selected >Si</option>
                 <option value=false >No</option>
-           </select></td>
+           </select>
+            Tipo:
+           <select id="modo">
+                <option value=0 selected >Nube</option>
+                <option value=1 >Terreno</option>
+                <option value=2 >Mapa de alturas</option>
+           </select>
+           <input type="button" value="Calcular" onclick="dib()" />
         </td>
-        <td><input type="button" value="Calcular" onclick="dib()" /></td>
     </tr>
     <tr>
         <td>
