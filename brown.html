@@ -26,6 +26,9 @@
     var maxcoord = 512;
     var dT; // delta T en los metodos numericos
     var H, addition;
+    var GaussFac;
+    var GaussAdd;
+    var Nrand;
 
 
     function reset() {
@@ -49,10 +52,13 @@
             for(var j = 0; j < maxcoord+1; j++)
                 X[i][j] = 0;
         }
+        Nrand = 8;
+        var g = init_gauss();
+        GaussFac = g[0];
+        GaussAdd = g[1];
     }
 
     function init_gauss() {
-        var Nrand = 4;
         var Arand = 1//Math.pow(2,31)-1;
         var GaussAdd = Math.sqrt(3*Nrand);
         var GaussFac = 2*GaussAdd/(Nrand*Arand);
@@ -61,13 +67,11 @@
 
     function gauss() {
         var sum = 0;
-        var g = init_gauss();
-        var Nrand = 4;
         for(var i = 0; i < Nrand; i++) {
             sum += Math.random();
         }
 
-        return g[0]*sum - g[1];
+        return GaussFac*sum - GaussAdd;
     }
 
     function f4(delta, x0, x1, x2, x3) {
@@ -81,7 +85,7 @@
     function MidPointFM2D(addition, H, maxlevel) {
 
        var N = Math.pow(2,maxlevel);       
-       var sigma = 0.5; // ??
+       var sigma = 0.9; // ??
        var delta = sigma;
        X[0][0] = delta*gauss();
        X[0][N] = delta*gauss();
@@ -91,23 +95,21 @@
        var D = N;
        var d = N/2;
 
-       for(var stage = 1; stage < maxlevel; stage++) {
+       for(var stage = 1; stage <= maxlevel; stage++) {
            delta *= Math.pow(0.5, 0.5*H);
-           for(var x = d; x <= N-d; x+=D) {
-              for(var y = d; y <= N-d; y+=D) {
-                  X[x][y] = f4(delta, X[x+d][x+d], X[x+d][y-d], X[x-d][y+d], X[x-d][y-d]);
-              }
-           }
+           for(var x = d; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                  X[x][y] = f4(delta, X[x+d][y+d], X[x+d][y-d], X[x-d][y+d], X[x-d][y-d]);
 
           if(addition) {
-              for(var x = 0; x <= N; x++)
-                  for(var y = 0; y <= N; y++)
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
                       X[x][y] += delta*gauss();
           }
 
           delta *= Math.pow(0.5,0.5*H);
 
-          for(var x = d; x < N-d; x+=D) {
+          for(var x = d; x <= N-d; x+=D) {
               X[x][0] = f3(delta,X[x+d][0],X[x-d][0],X[x][d]);
               X[x][N] = f3(delta,X[x+d][N],X[x-d][N],X[x][N-d]);
               X[0][x] = f3(delta,X[0][x+d],X[0][x-d],X[d][x]);
@@ -124,13 +126,11 @@
                   
           if(addition) {
               for(var x = 0; x <= N; x+=D)
-                  for(var y = 0; y <= N; y+=D) {
+                  for(var y = 0; y <= N; y+=D)
                       X[x][y] += delta*gauss();
-                  }
               for(var x = d; x <= N-d; x+=D)
-                  for(var y = d; y < N-d; y+=D) {
+                  for(var y = d; y <= N-d; y+=D)
                       X[x][y] += delta*gauss();
-                  }
           }
           D *= 0.5;
           d *= 0.5;
@@ -148,8 +148,6 @@
        
     function init(canvas) {
         try {
-            document.getElementById('addition').onchange = dib;
-            document.getElementById('H').onchange = dib;
         } catch (e) {
             alert("Problema con canvas!");
         }
@@ -193,20 +191,20 @@
 
         MidPointFM2D(addition,H,9);
 
-        var mmax = 0;
+        var mmax = -10;
         var mmin = 100000;
-        for(var i = 0; i < maxcoord+1; i++)
-            for(var j = 0; j < maxcoord+1; j++) {
-                var r = Math.floor(X[i][j]*100); var g,b;
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                var r = Math.floor(X[i][j]*100+100); var g,b;
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 0) { g = b = r; }
                 if(r > 255) r = g = b = 255;
+                if(r < 50) {b=3*r; r = 0; g = 0;}
+                else { if(r < 100) {g = r; r = 0; b = 0;}
+                else { if(r > 150) {g = b = r;} else {g = 100; b = 0;} } }
                 ctx.fillStyle = "rgba("+r+","+g+","+b+", 1.0)";
                 ctx.fillRect(i,j,1,1);
-                if(X[i][j] > mmax) mmax = X[i][j];
-                if(X[i][j] < mmin) mmin = X[i][j];
             }
-        alert(mmax + " " + mmin);
     }
 
     function start() {
@@ -245,6 +243,7 @@
                 <option value=false >No</option>
            </select></td>
         </td>
+        <td><input type="button" value="Calcular" onclick="dib()" /></td>
     </tr>
     <tr>
         <td>
