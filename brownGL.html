@@ -152,28 +152,32 @@
             }
     }
 
+    function sc(z) {
+        return z;
+    }
+
     function displayHeightField(phi) {
         var X = Y = [];
         var intens = [];
         for(var i = 0; i <= maxcoord - 1; i++) {
-            X[i] = 1/(maxcoord-1);
-            Y[i] = 1/(maxcoord-1);
+            X[i] = i/(maxcoord-1);
+            Y[i] = i/(maxcoord-1);
         }
 
         for(var i = 0; i <= maxcoord-1; i++) {
             intens[i] = [];
-            for(var k = 0; k <= maxcoord + maxcoord/2; k++) intens[i][k] = 0;
-            var p0 = P(phi,Y[0],Z[i][0]);
+            for(var k = 0; k <= maxcoord + maxcoord; k++) intens[i][k] = 0;
+            var p0 = P(phi,Y[0],sc(Z[i][0]));
             var horizon = p0;
 
             for(var j = 1; j <= maxcoord - 1; j++) {
-                var p1 = P(phi,Y[j],Z[i][j]);
+                var p1 = P(phi,Y[j],sc(Z[i][j]));
                 if(p1 > horizon) {
-                    intens[i][p1] = I(phi,i,j,Z[i][j]);
+                    intens[i][p1] = I(phi,i,j,sc(Z[i][j]));
                     var p = p1 - 1;
                     while(p > horizon) {
                         var h = (p-p0)/(p1-p0);
-                        intens[i][p] = (1-h)*I(phi,i,j-1,Z[i][j-1]) + h*intens[i][p1];
+                        intens[i][p] = (1-h)*I(phi,i,j-1,sc(Z[i][j-1])) + h*intens[i][p1];
 
                         p -= 1;
                     }
@@ -408,7 +412,6 @@
 
     function calcular3D() {
         var intens = displayHeightField(phi);
-        alert(intens)
         vertices = [];
         colores = [];
 
@@ -418,11 +421,9 @@
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 0) { g = b = r; }
                 if(r > 1) r = g = b = 1;
-                var c = mapear(modo,r,g,b);
-                vertices.push((i/maxcoord-0.5)*2,(j/maxcoord-0.5)*2);
-                colores.push(c[0],c[1],c[2],1.0);
+                vertices.push((i/maxcoord-0.5)*2,(j/(maxcoord)-0.5)*2);
+                colores.push(r,g,b,1.0);
             }
-        initBuffers3D();
     }
 
     function mapear(modo,r,g,b) {
