@@ -1,0 +1,335 @@
+
+<html> 
+ 
+<head> 
+<title>Un triangulo en WebGL</title> 
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"> 
+ 
+<script type="text/javascript" src="shaders.js"></script> 
+
+<!-- Shaders - ignorar en esta leccion -->
+<script id="shader-fs" type="x-shader/x-fragment"> 
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_FragColor = vec4(vColor);
+    }
+</script> 
+ 
+<script id="shader-vs" type="x-shader/x-vertex"> 
+    attribute vec2 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_Position = vec4(aVertexPosition,0.0,1.0);
+        vColor = aVertexColor;
+    }
+</script> 
+<!--// ignorar en esta leccion -->
+
+
+ 
+<script type="text/javascript"> 
+
+    // variable que sirve de interfaz a opengl
+    var gl;
+
+    // variable que se utilizara como buffer para los vertices del triangulo
+    var triangleVertexPositionBuffer;
+    var colorBuffer;
+
+    var ctx;
+    var k;
+    var X; // arreglo con los valores
+
+    var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
+    var H,addition,modo,GaussFac,GaussAdd,Nrand;
+    var vertices,colores;
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+            alert("No es posible inicializar WebGL");
+        }
+        if (!gl) {
+            alert("No es posible inicializar WebGL");
+        }
+    }
+ 
+ 
+    function initBuffers() {
+        triangleVertexPositionBuffer = gl.createBuffer();
+        colorBuffer = gl.createBuffer();
+
+        // lista javascript representando los vertices del triangulo (x,y)
+
+        // se asocian estos vertices con el buffer triangleVertexPositionBuffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+
+        triangleVertexPositionBuffer.numItems = maxcoord2;
+        colorBuffer.numItems = maxcoord2;
+        colorBuffer.sizeItem = 4;
+    }
+ 
+ 
+    function dibujar() {
+        calcular();
+
+        // color de fondo de la escena
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // se dibuja en este viewport (subconjunto del espacio)
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+
+        // se permiten colores en el canvas
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexPositionAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexColorAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+        // se dibujan los buffers en pantalla
+        gl.drawArrays(gl.POINTS, 0, triangleVertexPositionBuffer.numItems);
+
+    } 
+ 
+    function webGLStart() {
+        // se obtiene el objeto canvas del codigo html (como un objeto javascript)
+        var canvas = document.getElementById("canvas");
+
+        // inicializaciones
+        initGL(canvas);
+        initShaders();
+ 
+        dib();
+    }
+
+
+    function init_variables() {
+        X = [];
+        vertices = [];
+        colores = [];
+        H = parseFloat(document.getElementById('H').value);
+        addition = document.getElementById('addition').value;
+        modo = document.getElementById('modo').value;
+        for(var i = 0; i < maxcoord+1; i++) {
+            X[i] = [];
+            for(var j = 0; j < maxcoord+1; j++)
+                X[i][j] = 0;
+        }
+        Nrand = 8;
+        var g = init_gauss();
+        GaussFac = g[0];
+        GaussAdd = g[1];
+    }
+
+    function init_gauss() {
+        var Arand = 1
+        var GaussAdd = Math.sqrt(3*Nrand);
+        var GaussFac = 2*GaussAdd/(Nrand*Arand);
+        return [GaussFac,GaussAdd];
+    }
+
+    function gauss() {
+        var sum = 0;
+        for(var i = 0; i < Nrand; i++) {
+            sum += Math.random();
+        }
+
+        return GaussFac*sum - GaussAdd;
+    }
+
+    function f4(delta, x0, x1, x2, x3) {
+        return (x0+x1+x2+x3)/4 + delta*gauss();
+    }
+
+    function f3(delta, x0,x1,x2 ) {
+        return (x0+x1+x2)/3 + delta*gauss();
+    }
+
+    function MidPointFM2D(addition, H, maxlevel) {
+       var N = Math.pow(2,maxlevel);       
+       var sigma = 0.9; // ??
+       var delta = sigma;
+       X[0][0] = delta*gauss();
+       X[0][N] = delta*gauss();
+       X[N][0] = delta*gauss();
+       X[N][N] = delta*gauss();
+
+       var D = N;
+       var d = N/2;
+
+       for(var stage = 1; stage <= maxlevel; stage++) {
+           delta *= Math.pow(0.5, 0.5*H);
+           for(var x = d; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                  X[x][y] = f4(delta, X[x+d][y+d], X[x+d][y-d], X[x-d][y+d], X[x-d][y-d]);
+
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      X[x][y] += delta*gauss();
+          }
+
+          delta *= Math.pow(0.5,0.5*H);
+
+          for(var x = d; x <= N-d; x+=D) {
+              X[x][0] = f3(delta,X[x+d][0],X[x-d][0],X[x][d]);
+              X[x][N] = f3(delta,X[x+d][N],X[x-d][N],X[x][N-d]);
+              X[0][x] = f3(delta,X[0][x+d],X[0][x-d],X[d][x]);
+              X[N][x] = f3(delta,X[N][x+d],X[N][x-d],X[N-d][x]);
+          }
+
+          for(var x = d; x <= N-d; x+=D)
+              for(var y = D; y <= N-d; y+=D)
+                 X[x][y] = f4(delta, X[x][y+d], X[x][y-d], X[x+d][y], X[x-d][y]);
+
+          for(var x = D; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                 X[x][y] = f4(delta, X[x][y+d], X[x][y-d], X[x+d][y], X[x-d][y]);
+                  
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      X[x][y] += delta*gauss();
+              for(var x = d; x <= N-d; x+=D)
+                  for(var y = d; y <= N-d; y+=D)
+                      X[x][y] += delta*gauss();
+          }
+          D *= 0.5;
+          d *= 0.5;
+     }  
+
+    }
+
+    function dib(e) {
+        dibujar();
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function calcular() {     
+        init_variables();
+
+        MidPointFM2D(addition,H,9);
+
+        var mmax = -10;
+        var mmin = 100000;
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                var r = X[i][j]; var g,b;
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 0) { g = b = r; }
+                if(r > 1) r = g = b = 1;
+                var c = mapear(modo,r,g,b);
+                vertices.push((i/maxcoord-0.5)*2,(j/maxcoord-0.5)*2);
+                colores.push(c[0],c[1],c[2],1.0);
+            }
+        initBuffers();
+    }
+
+    function mapear(modo,r,g,b) {
+        if(modo == 1) { // terrenos
+            if(r < 0.2) {b=3*r; r = 0; g = 0;}
+            else { if(r < 0.4) {g = r; r = 0; b = 0;}
+            else { if(r > 0.6) {g = b = r;} else {g = 0.5; b = 0;} } }
+        }
+        else { // nubes
+            if(modo != 2) {
+                b = 1.0;
+                if(r < 0.5) {r = 0; g = 0;}
+                else { if(r < 0.5) {g = r = (r-0.5)/0.5;} }
+            }
+        }
+        return [r,g,b];
+    }
+
+    function ayuda() {
+        alert("El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.\nSe pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.");
+    }
+
+ 
+ </script> 
+</head> 
+ 
+ 
+<body onload="webGLStart();"> 
+    <div style="text-align:center; font-size:30px">Movimiento Browniano Fraccional <input type="button" value="Ayuda" onclick="ayuda()" /></div>
+
+    <div id="canvas-container" style="align:center;">
+    <table >
+      
+    <tr>
+        <td>
+            H (dimensi&oacute;n fractal): <input type="text" value="0.5" id="H" size=5 />
+            Agregar ruido: 
+           <select id="addition">
+                <option value=true selected >Si</option>
+                <option value=false >No</option>
+           </select>
+            Tipo:
+           <select id="modo">
+                <option value=0 selected >Nube</option>
+                <option value=1 >Terreno</option>
+                <option value=2 >Mapa de alturas</option>
+           </select>
+           <input type="button" value="Calcular" onclick="dib()" />
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+        <td style="align:top; width: 80px;" >
+        <div id="maxY" style="font-size:30px; position:relative; left:0px; top:-220px;"></div>
+        <div id="minY" style="font-size:30px; position:relative; left:0px; top:220px;"></div>
+        </td>
+    </tr>
+    <tr> 
+        <td><div id="minX" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxX" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
+        </td>
+        <td></td>
+        <td><div id="minXJ" style="float:left; font-size:30px; position:relative; left:0px; top:0px;"></div>
+        <div id="maxXJ" style="font-size:30px; position:relative; left:400px; top:0px;"></div>
+        </td>
+    </tr>
+    </table>
+    </div>
+</body> 
+ 
+</html> 
