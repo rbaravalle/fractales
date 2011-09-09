@@ -135,7 +135,7 @@
 
         var n = [dx/r,dy/r,dz/r]; // normal
 
-        var luz = [2.0,2.0,2.0]; // posicion de la luz
+        var luz = [0.0,0.0,0.0]; // posicion de la luz
         var l = [luz[0]-x,luz[1]-y,luz[2]-z]; // luz - posicion
         l = norm(l);
 
@@ -417,12 +417,12 @@
 
         for(var i = 0; i < maxcoord; i++)
             for(var j = 0; j < maxcoord; j++) {
-                var r = intens[i][j]; var g,b;
+                var r = intens[i][j];
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 0) { g = b = r; }
                 if(r > 1) r = g = b = 1;
                 vertices.push((i/maxcoord-0.5)*2,(j/(maxcoord)-0.5)*2);
-                colores.push(r,g,b,1.0);
+                colores.push(r,r,r,1.0);
             }
     }
 
