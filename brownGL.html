@@ -52,6 +52,8 @@
 
     var maxcoord = 512;
     var maxcoord2 = maxcoord*maxcoord;
+    var maxlevel;
+    var maxd;
     var H,addition,modo,GaussFac,GaussAdd,Nrand;
     var vertices,colores;
     var fs, fs, Ia;
@@ -84,8 +86,8 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
 
-        triangleVertexPositionBuffer.numItems = maxcoord2;
-        colorBuffer.numItems = maxcoord2;
+        triangleVertexPositionBuffer.numItems = vertices.length/2;
+        colorBuffer.numItems = vertices.length/4;
         colorBuffer.sizeItem = 4;
     }
 
@@ -99,8 +101,9 @@
         gl2.bindBuffer(gl2.ARRAY_BUFFER, colorBuffer3D);
         gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(colores), gl2.STATIC_DRAW);
 
-        positionBuffer3D.numItems = maxcoord2;
-        colorBuffer3D.numItems = maxcoord2;
+        positionBuffer3D.numItems = vertices.length/2;
+
+        colorBuffer3D.numItems = vertices.length/4;
         colorBuffer3D.sizeItem = 4;
     }
 
@@ -121,16 +124,16 @@
     }
 
     function P(phi,y,z) {
-        return Math.floor((maxcoord-1)*(y*Math.sin(phi)+z*Math.cos(phi)));
+        return Math.floor((maxd-1)*(y*Math.sin(phi)+z*Math.cos(phi)));
     }
 
     function I(phi,x,y,z) {
         var dx,dy,dz;
-        if(x < maxcoord) dx = z - Z[x+1][y];
+        if(x < maxd) dx = z - Z[x+1][y];
         else dx = z; // ?
         if(y > 0) dy = Z[x][y-1] - z;
         else dy = z;
-        dz = 1/(maxcoord-1);
+        dz = 1/(maxd-1);
 
         var r = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
@@ -154,20 +157,32 @@
     }
 
     function displayHeightField(phi) {
-        var X = Y = [];
-        var intens = [];
-        for(var i = 0; i <= maxcoord - 1; i++) {
-            X[i] = i/(maxcoord-1);
-            Y[i] = i/(maxcoord-1);
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                if(Z[i][j] > maximo) maximo = Z[i][j];
+                if(Z[i][j] < minimo) minimo = Z[i][j];
+            }
+
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] = sc(Z[i][j]);
         }
 
-        for(var i = 0; i <= maxcoord-1; i++) {
+
+        var X = Y = [];
+        var intens = [];
+        for(var i = 0; i <= maxd - 1; i++) {
+            X[i] = i/(maxd-1);
+            Y[i] = i/(maxd-1);
+        }
+
+        for(var i = 0; i <= maxd-1; i++) {
             intens[i] = [];
-            for(var k = 0; k <= maxcoord + maxcoord; k++) intens[i][k] = 0;
+            for(var k = 0; k <= maxd + maxd; k++) intens[i][k] = 0;
             var p0 = P(phi,Y[0],Z[i][0]);
             var horizon = p0;
 
-            for(var j = 1; j <= maxcoord - 1; j++) {
+            for(var j = 1; j <= maxd - 1; j++) {
                 var p1 = P(phi,Y[j],Z[i][j]);
                 if(p1 > horizon) {
                     intens[i][p1] = I(phi,i,j,Z[i][j]);
@@ -195,18 +210,21 @@
         H = parseFloat(document.getElementById('H').value);
         addition = document.getElementById('addition').value;
         modo = document.getElementById('modo').value;
-        for(var i = 0; i < maxcoord+1; i++) {
+
+        maxlevel = document.getElementById('maxlevel').value;
+        maxd = Math.pow(2,maxlevel);
+        for(var i = 0; i <= maxd; i++) {
             Z[i] = [];
-            for(var j = 0; j < maxcoord+1; j++)
+            for(var j = 0; j < maxd; j++)
                 Z[i][j] = 0;
         }
-        Nrand = 8;
+        Nrand = 16;
         var g = init_gauss();
         GaussFac = g[0];
         GaussAdd = g[1];
         fs = 0.4;
         fd = 0.6;
-        Ia = 0.1; // ambiente
+        Ia = 0.2; // ambiente
         maximo = 0;
         minimo = 0;
     }
@@ -235,15 +253,16 @@
         return (x0+x1+x2)/3 + delta*gauss();
     }
 
-    function sc(z) {
-        minn = minimo-(maximo-minimo)/4;
-        maxx = maximo+(maximo-minimo)/4;
+    function sc(z,i,j) {
+        var d = (maximo-minimo)/1.5;
+        minn = minimo-d;
+        maxx = maximo+d;
         return (z-minn)/(maxx-minn);
     }
 
     function MidPointFM2D(addition, H, maxlevel) {
-       var N = Math.pow(2,maxlevel);       
-       var sigma = 0.1; // ??
+       var N = maxd;       
+       var sigma = 0.9; // ??
        var delta = sigma;
        Z[0][0] = delta*gauss();
        Z[0][N] = delta*gauss();
@@ -293,16 +312,7 @@
           D *= 0.5;
           d *= 0.5;
     }
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
-                if(Z[i][j] > maximo) maximo = Z[i][j];
-                if(Z[i][j] < minimo) minimo = Z[i][j];
-            }
 
-        for(var i = 0; i < maxcoord; i++) {
-            for(var j = 0; j < maxcoord; j++)
-                Z[i][j] = sc(Z[i][j]);
-        }
     }
 
     function dib(e) {
@@ -322,24 +332,75 @@
         return Math.floor(Math.random()*x);
     }
 
+
+    function tstrip() {
+        var ind = [];
+        var c = 0;
+        // algoritmo para lograr una triangulacion a partir de un conjunto de puntos
+        // para triangle_strip
+        // idea tomada de:
+        // http://dan.lecocq.us/wordpress/2009/12/25/triangle-strip-for-grids-a-construction/
+        for(var i = 0; i <= maxd-2; i+=2) {
+            var j;
+            for(j = 0; j <= maxd-1; j++) {
+                ind[c++] = i*maxd+j;
+                ind[c++] = i*maxd+j+maxd;
+            }
+            if(i < maxd-2) {
+                j--;
+                ind[c++] = i*maxd+(j)+maxd;
+                for(; i*maxd+j+maxd >= (i+1)*maxd+1; j--) {
+                    ind[c++] = (i+1)*maxd+j+maxd;
+                    ind[c++] = (i+1)*maxd+j-1;
+                }
+                ind[c++] = (i+1)*maxd+j+maxd;
+            }
+        }
+        return ind;
+    }
+
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function calcular() {     
         init_variables();
 
-        MidPointFM2D(addition,H,9);
+        MidPointFM2D(addition,H,maxlevel);
 
         var phi = 0;
         
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
                 var r = Z[i][j]; var g,b;
                 if(r < 0) { r = 0; g = 0; b = 0;}
-                if(r > 0) { g = b = r; }
                 if(r > 1) r = g = b = 1;
+                g = r;
+                b = r;
                 var c = mapear(modo,r,g,b);
-                vertices.push((i/maxcoord-0.5)*2,(j/maxcoord-0.5)*2);
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
                 colores.push(c[0],c[1],c[2],1.0);
             }
+
+        // se obtiene el orden de los vertices
+        // para poder implementar triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        var v2 = [];
+        var c2 = [];
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
+
     }
 
     function calcular3D() {
@@ -347,29 +408,49 @@
         vertices = [];
         colores = [];
 
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
                 var r = intens[i][j];
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 1) r = g = b = 1;
                 g = r;
                 b = r;
-                vertices.push((i/maxcoord-0.5)*2,(j/(maxcoord)-0.5)*2);
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
                 colores.push(0.8*r,0.6*g,0.5*b,1.0);
             }
+
+        var v2 = [];
+        var c2 = [];
+        // se obtiene el orden de los vertices
+        // para poder implementar triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
     }
 
     function mapear(modo,r,g,b) {
         if(modo == 1) { // terrenos
-            if(r < 0.2) {b=3*r; r = 0; g = 0;}
-            else { if(r < 0.4) {g = r; r = 0; b = 0;}
-            else { if(r > 0.6) {g = b = r;} else {g = 0.5; b = 0;} } }
+            if(r < 100/255) {b=2*r; g = r = 0;}
+            else { if(r < 150/255) {g = r; r = 0; b = 0;}
+            else { if(r > 220/255) {g = b = r;} else {g = 100/255; b = 0;} } }
         }
         else { // nubes
             if(modo != 2) {
                 b = 1.0;
-                if(r < 0.5) {r = 0; g = 0;}
-                else { if(r < 0.5) {g = r = (r-0.5)/0.5;} }
+                if(r < 100/255) {r = 0; g = 0;}
             }
         }
         return [r,g,b];
@@ -406,14 +487,13 @@
         gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
         // se dibujan los buffers en pantalla
-        gl.drawArrays(gl.POINTS, 0, triangleVertexPositionBuffer.numItems);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);
 
     } 
 
     function dibujar3D() {
         // calculamos el algoritmo de desplazamiento del punto medio en 2D
         calcular3D();
-
         initBuffers3D();
 
         // color de fondo de la escena
@@ -440,7 +520,7 @@
         gl2.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl2.FLOAT, false, 0, 0);
 
         // se dibujan los buffers en pantalla
-        gl2.drawArrays(gl2.POINTS, 0, positionBuffer3D.numItems);
+        gl2.drawArrays(gl2.TRIANGLE_STRIP, 0, positionBuffer3D.numItems);
 
     } 
  
@@ -457,26 +537,22 @@
         dib();
     }
 
-
-    function ayuda() {
-        alert("El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.\nSe pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.");
-    }
-
  
  </script> 
 </head> 
  
  
 <body onload="webGLStart();"> 
-    <div style="text-align:center; font-size:30px">Movimiento Browniano Fraccional <input type="button" value="Ayuda" onclick="ayuda()" /></div>
+    <div style="text-align:center; font-size:30px">Movimiento Browniano Fraccional</div>
 
     <div id="canvas-container" style="align:center;">
     <table >
       
     <tr>
         <td>
-            H (dimensi&oacute;n fractal): <input type="text" value="0.5" id="H" size=5 />
+            2-H (dimensi&oacute;n fractal): <input type="text" value="0.5" id="H" size=5 />
             Angulo: <input type="text" value="0" id="angulo" size=5 />
+            Resoluci&oacute;n <input type="text" value="9" id="maxlevel" size=5 />
             Agregar ruido: 
            <select id="addition">
                 <option value=true selected >Si</option>
@@ -499,6 +575,9 @@
             <canvas id="canvas2" style="background-color:black;" width="512" height="512"></canvas>
         </td>
     </tr>
+El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.<br/>
+Se pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.<br/>
+A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representacion 3D de los datos, simulando un terreno.
     </table>
     </div>
 </body> 
