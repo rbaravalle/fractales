@@ -316,8 +316,15 @@
     }
 
     function dib(e) {
-        dibujar();
-        dibujar3D();
+        if(document.getElementById('maxlevel').value <= 9 && 
+           document.getElementById('angulo').value <= 1.57  &&
+           document.getElementById('angulo').value >= 0) {
+            dibujar();
+            dibujar3D();
+        }
+        else {
+            alert('Verifique que la resolucion sea menor o igual a 9 y que el angulo este entre 0 y 1.57');
+        }
     }
 
     function vabs(x,y) {
@@ -550,7 +557,7 @@
       
     <tr>
         <td>
-            2-H (dimensi&oacute;n fractal): <input type="text" value="0.5" id="H" size=5 />
+            2-H (dimensi&oacute;n fractal): <input type="text" value="0.9" id="H" size=5 />
             Angulo: <input type="text" value="0" id="angulo" size=5 />
             Resoluci&oacute;n <input type="text" value="9" id="maxlevel" size=5 />
             Agregar ruido: 
@@ -560,13 +567,15 @@
            </select>
             Tipo:
            <select id="modo">
-                <option value=0 selected >Nube</option>
-                <option value=1 >Terreno</option>
+                <option value=0 >Nube</option>
+                <option value=1 selected>Terreno</option>
                 <option value=2 >Mapa de alturas</option>
            </select>
            <input type="button" value="Calcular" onclick="dib()" />
         </td>
     </tr>
+  </table>
+    <table>
     <tr>
         <td>
             <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
