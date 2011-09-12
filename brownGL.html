@@ -45,6 +45,7 @@
     var colorBuffer;
     var positionBuffer3D;
     var colorBuffer3D;
+    var maximo, minimo;
 
     var k;
     var Z; // arreglo con los valores
@@ -135,7 +136,7 @@
 
         var n = [dx/r,dy/r,dz/r]; // normal
 
-        var luz = [0.0,0.0,0.0]; // posicion de la luz
+        var luz = [0.0,0.0,4.0]; // posicion de la luz
         var l = [luz[0]-x,luz[1]-y,luz[2]-z]; // luz - posicion
         l = norm(l);
 
@@ -152,10 +153,6 @@
             }
     }
 
-    function sc(z) {
-        return z;
-    }
-
     function displayHeightField(phi) {
         var X = Y = [];
         var intens = [];
@@ -167,17 +164,18 @@
         for(var i = 0; i <= maxcoord-1; i++) {
             intens[i] = [];
             for(var k = 0; k <= maxcoord + maxcoord; k++) intens[i][k] = 0;
-            var p0 = P(phi,Y[0],sc(Z[i][0]));
+            var p0 = P(phi,Y[0],Z[i][0]);
             var horizon = p0;
 
             for(var j = 1; j <= maxcoord - 1; j++) {
-                var p1 = P(phi,Y[j],sc(Z[i][j]));
+                var p1 = P(phi,Y[j],Z[i][j]);
                 if(p1 > horizon) {
-                    intens[i][p1] = I(phi,i,j,sc(Z[i][j]));
+                    intens[i][p1] = I(phi,i,j,Z[i][j]);
                     var p = p1 - 1;
                     while(p > horizon) {
                         var h = (p-p0)/(p1-p0);
-                        intens[i][p] = (1-h)*I(phi,i,j-1,sc(Z[i][j-1])) + h*intens[i][p1];
+                        intens[i][p] = (1-h)*I(phi,i,j-1,Z[i][j-1])
+                                     + h*intens[i][p1];
 
                         p -= 1;
                     }
@@ -189,6 +187,194 @@
         return intens;        
     }
  
+    function init_variables() {
+        Z = [];
+        vertices = [];
+        colores = [];
+        phi = parseFloat(document.getElementById('angulo').value);
+        H = parseFloat(document.getElementById('H').value);
+        addition = document.getElementById('addition').value;
+        modo = document.getElementById('modo').value;
+        for(var i = 0; i < maxcoord+1; i++) {
+            Z[i] = [];
+            for(var j = 0; j < maxcoord+1; j++)
+                Z[i][j] = 0;
+        }
+        Nrand = 8;
+        var g = init_gauss();
+        GaussFac = g[0];
+        GaussAdd = g[1];
+        fs = 0.4;
+        fd = 0.6;
+        Ia = 0.1; // ambiente
+        maximo = 0;
+        minimo = 0;
+    }
+
+    function init_gauss() {
+        var Arand = 1
+        var GaussAdd = Math.sqrt(3*Nrand);
+        var GaussFac = 2*GaussAdd/(Nrand*Arand);
+        return [GaussFac,GaussAdd];
+    }
+
+    function gauss() {
+        var sum = 0;
+        for(var i = 0; i < Nrand; i++) {
+            sum += Math.random();
+        }
+
+        return GaussFac*sum - GaussAdd;
+    }
+
+    function f4(delta, x0, x1, x2, x3) {
+        return (x0+x1+x2+x3)/4 + delta*gauss();
+    }
+
+    function f3(delta, x0,x1,x2 ) {
+        return (x0+x1+x2)/3 + delta*gauss();
+    }
+
+    function sc(z) {
+        minn = minimo-(maximo-minimo)/4;
+        maxx = maximo+(maximo-minimo)/4;
+        return (z-minn)/(maxx-minn);
+    }
+
+    function MidPointFM2D(addition, H, maxlevel) {
+       var N = Math.pow(2,maxlevel);       
+       var sigma = 0.1; // ??
+       var delta = sigma;
+       Z[0][0] = delta*gauss();
+       Z[0][N] = delta*gauss();
+       Z[N][0] = delta*gauss();
+       Z[N][N] = delta*gauss();
+
+       var D = N;
+       var d = N/2;
+
+       for(var stage = 1; stage <= maxlevel; stage++) {
+           delta *= Math.pow(0.5, 0.5*H);
+           for(var x = d; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                  Z[x][y] = f4(delta, Z[x+d][y+d], Z[x+d][y-d], Z[x-d][y+d], Z[x-d][y-d]);
+
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+
+          delta *= Math.pow(0.5,0.5*H);
+
+          for(var x = d; x <= N-d; x+=D) {
+              Z[x][0] = f3(delta,Z[x+d][0],Z[x-d][0],Z[x][d]);
+              Z[x][N] = f3(delta,Z[x+d][N],Z[x-d][N],Z[x][N-d]);
+              Z[0][x] = f3(delta,Z[0][x+d],Z[0][x-d],Z[d][x]);
+              Z[N][x] = f3(delta,Z[N][x+d],Z[N][x-d],Z[N-d][x]);
+          }
+
+          for(var x = d; x <= N-d; x+=D)
+              for(var y = D; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+
+          for(var x = D; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+                  
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+              for(var x = d; x <= N-d; x+=D)
+                  for(var y = d; y <= N-d; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+          D *= 0.5;
+          d *= 0.5;
+    }
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                if(Z[i][j] > maximo) maximo = Z[i][j];
+                if(Z[i][j] < minimo) minimo = Z[i][j];
+            }
+
+        for(var i = 0; i < maxcoord; i++) {
+            for(var j = 0; j < maxcoord; j++)
+                Z[i][j] = sc(Z[i][j]);
+        }
+    }
+
+    function dib(e) {
+        dibujar();
+        dibujar3D();
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function calcular() {     
+        init_variables();
+
+        MidPointFM2D(addition,H,9);
+
+        var phi = 0;
+        
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                var r = Z[i][j]; var g,b;
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 0) { g = b = r; }
+                if(r > 1) r = g = b = 1;
+                var c = mapear(modo,r,g,b);
+                vertices.push((i/maxcoord-0.5)*2,(j/maxcoord-0.5)*2);
+                colores.push(c[0],c[1],c[2],1.0);
+            }
+    }
+
+    function calcular3D() {
+        var intens = displayHeightField(phi);
+        vertices = [];
+        colores = [];
+
+        for(var i = 0; i < maxcoord; i++)
+            for(var j = 0; j < maxcoord; j++) {
+                var r = intens[i][j];
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 1) r = g = b = 1;
+                g = r;
+                b = r;
+                vertices.push((i/maxcoord-0.5)*2,(j/(maxcoord)-0.5)*2);
+                colores.push(0.8*r,0.6*g,0.5*b,1.0);
+            }
+    }
+
+    function mapear(modo,r,g,b) {
+        if(modo == 1) { // terrenos
+            if(r < 0.2) {b=3*r; r = 0; g = 0;}
+            else { if(r < 0.4) {g = r; r = 0; b = 0;}
+            else { if(r > 0.6) {g = b = r;} else {g = 0.5; b = 0;} } }
+        }
+        else { // nubes
+            if(modo != 2) {
+                b = 1.0;
+                if(r < 0.5) {r = 0; g = 0;}
+                else { if(r < 0.5) {g = r = (r-0.5)/0.5;} }
+            }
+        }
+        return [r,g,b];
+    }
+
  
     function dibujar() {
         // se calcula el algoritmo de desplazamiento del punto medio en 2D
@@ -271,176 +457,6 @@
         dib();
     }
 
-
-    function init_variables() {
-        Z = [];
-        vertices = [];
-        colores = [];
-        phi = parseFloat(document.getElementById('angulo').value);
-        H = parseFloat(document.getElementById('H').value);
-        addition = document.getElementById('addition').value;
-        modo = document.getElementById('modo').value;
-        for(var i = 0; i < maxcoord+1; i++) {
-            Z[i] = [];
-            for(var j = 0; j < maxcoord+1; j++)
-                Z[i][j] = 0;
-        }
-        Nrand = 8;
-        var g = init_gauss();
-        GaussFac = g[0];
-        GaussAdd = g[1];
-        fs = 0.4;
-        fd = 0.6;
-        Ia = 0; // ambiente
-    }
-
-    function init_gauss() {
-        var Arand = 1
-        var GaussAdd = Math.sqrt(3*Nrand);
-        var GaussFac = 2*GaussAdd/(Nrand*Arand);
-        return [GaussFac,GaussAdd];
-    }
-
-    function gauss() {
-        var sum = 0;
-        for(var i = 0; i < Nrand; i++) {
-            sum += Math.random();
-        }
-
-        return GaussFac*sum - GaussAdd;
-    }
-
-    function f4(delta, x0, x1, x2, x3) {
-        return (x0+x1+x2+x3)/4 + delta*gauss();
-    }
-
-    function f3(delta, x0,x1,x2 ) {
-        return (x0+x1+x2)/3 + delta*gauss();
-    }
-
-    function MidPointFM2D(addition, H, maxlevel) {
-       var N = Math.pow(2,maxlevel);       
-       var sigma = 0.9; // ??
-       var delta = sigma;
-       Z[0][0] = delta*gauss();
-       Z[0][N] = delta*gauss();
-       Z[N][0] = delta*gauss();
-       Z[N][N] = delta*gauss();
-
-       var D = N;
-       var d = N/2;
-
-       for(var stage = 1; stage <= maxlevel; stage++) {
-           delta *= Math.pow(0.5, 0.5*H);
-           for(var x = d; x <= N-d; x+=D)
-              for(var y = d; y <= N-d; y+=D)
-                  Z[x][y] = f4(delta, Z[x+d][y+d], Z[x+d][y-d], Z[x-d][y+d], Z[x-d][y-d]);
-
-          if(addition) {
-              for(var x = 0; x <= N; x+=D)
-                  for(var y = 0; y <= N; y+=D)
-                      Z[x][y] += delta*gauss();
-          }
-
-          delta *= Math.pow(0.5,0.5*H);
-
-          for(var x = d; x <= N-d; x+=D) {
-              Z[x][0] = f3(delta,Z[x+d][0],Z[x-d][0],Z[x][d]);
-              Z[x][N] = f3(delta,Z[x+d][N],Z[x-d][N],Z[x][N-d]);
-              Z[0][x] = f3(delta,Z[0][x+d],Z[0][x-d],Z[d][x]);
-              Z[N][x] = f3(delta,Z[N][x+d],Z[N][x-d],Z[N-d][x]);
-          }
-
-          for(var x = d; x <= N-d; x+=D)
-              for(var y = D; y <= N-d; y+=D)
-                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
-
-          for(var x = D; x <= N-d; x+=D)
-              for(var y = d; y <= N-d; y+=D)
-                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
-                  
-          if(addition) {
-              for(var x = 0; x <= N; x+=D)
-                  for(var y = 0; y <= N; y+=D)
-                      Z[x][y] += delta*gauss();
-              for(var x = d; x <= N-d; x+=D)
-                  for(var y = d; y <= N-d; y+=D)
-                      Z[x][y] += delta*gauss();
-          }
-          D *= 0.5;
-          d *= 0.5;
-     }  
-
-    }
-
-    function dib(e) {
-        dibujar();
-        dibujar3D();
-    }
-
-    function vabs(x,y) {
-        return Math.sqrt(x*x + y*y);
-    }
-
-    function prod(a,b,c,d) {
-        return [a*c-b*d,a*d+b*c];
-    }
-
-    function aleat(x) {
-        return Math.floor(Math.random()*x);
-    }
-
-    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
-    function calcular() {     
-        init_variables();
-
-        MidPointFM2D(addition,H,9);
-
-        var phi = 0;
-        
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
-                var r = Z[i][j]; var g,b;
-                if(r < 0) { r = 0; g = 0; b = 0;}
-                if(r > 0) { g = b = r; }
-                if(r > 1) r = g = b = 1;
-                var c = mapear(modo,r,g,b);
-                vertices.push((i/maxcoord-0.5)*2,(j/maxcoord-0.5)*2);
-                colores.push(c[0],c[1],c[2],1.0);
-            }
-    }
-
-    function calcular3D() {
-        var intens = displayHeightField(phi);
-        vertices = [];
-        colores = [];
-
-        for(var i = 0; i < maxcoord; i++)
-            for(var j = 0; j < maxcoord; j++) {
-                var r = intens[i][j];
-                if(r < 0) { r = 0; g = 0; b = 0;}
-                if(r > 0) { g = b = r; }
-                if(r > 1) r = g = b = 1;
-                vertices.push((i/maxcoord-0.5)*2,(j/(maxcoord)-0.5)*2);
-                colores.push(r,r,r,1.0);
-            }
-    }
-
-    function mapear(modo,r,g,b) {
-        if(modo == 1) { // terrenos
-            if(r < 0.2) {b=3*r; r = 0; g = 0;}
-            else { if(r < 0.4) {g = r; r = 0; b = 0;}
-            else { if(r > 0.6) {g = b = r;} else {g = 0.5; b = 0;} } }
-        }
-        else { // nubes
-            if(modo != 2) {
-                b = 1.0;
-                if(r < 0.5) {r = 0; g = 0;}
-                else { if(r < 0.5) {g = r = (r-0.5)/0.5;} }
-            }
-        }
-        return [r,g,b];
-    }
 
     function ayuda() {
         alert("El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.\nSe pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.");
