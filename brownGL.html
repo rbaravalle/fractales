@@ -46,6 +46,7 @@
     var positionBuffer3D;
     var colorBuffer3D;
     var maximo, minimo;
+    var agua,nivel;
 
     var k;
     var Z; // arreglo con los valores
@@ -182,10 +183,12 @@
             var p0 = P(phi,Y[0],Z[i][0]);
             var horizon = p0;
 
+            var last = Z[i][0];
             for(var j = 1; j <= maxd - 1; j++) {
                 var p1 = P(phi,Y[j],Z[i][j]);
                 if(p1 > horizon) {
                     intens[i][p1] = I(phi,i,j,Z[i][j]);
+                    if(Z[i][j] <= sc(nivel)) { agua[i][p1] = 1;}
                     var p = p1 - 1;
                     while(p > horizon) {
                         var h = (p-p0)/(p1-p0);
@@ -193,6 +196,7 @@
                                      + h*intens[i][p1];
 
                         p -= 1;
+                        if(Z[i][j-1] <= sc(nivel)) agua[i][p] = 1;
                     }
                     horizon = p1;
                 }
@@ -204,19 +208,24 @@
  
     function init_variables() {
         Z = [];
+        agua = [];
         vertices = [];
         colores = [];
+        nivel = parseFloat(document.getElementById('nivel').value);
         phi = parseFloat(document.getElementById('angulo').value);
         H = parseFloat(document.getElementById('H').value);
-        addition = document.getElementById('addition').value;
+        addition = true;
         modo = document.getElementById('modo').value;
 
         maxlevel = document.getElementById('maxlevel').value;
         maxd = Math.pow(2,maxlevel);
         for(var i = 0; i <= maxd; i++) {
             Z[i] = [];
-            for(var j = 0; j < maxd; j++)
+            agua[i] = [];
+            for(var j = 0; j < maxd; j++) {
                 Z[i][j] = 0;
+                agua[i][j] = 0;
+            }
         }
         Nrand = 16;
         var g = init_gauss();
@@ -315,7 +324,7 @@
 
     }
 
-    function dib(e) {
+    function dib() {
         if(document.getElementById('maxlevel').value <= 9 && 
            document.getElementById('angulo').value <= 1.57  &&
            document.getElementById('angulo').value >= 0) {
@@ -387,7 +396,7 @@
             }
 
         // se obtiene el orden de los vertices
-        // para poder implementar triangle strip
+        // para poder visualizar un triangle strip
         // a partir de un conjunto de puntos
         var ind = tstrip();
 
@@ -411,6 +420,11 @@
     }
 
     function calcular3D() {
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] *= (j/2)*0.75;
+        }
+
         var intens = displayHeightField(phi);
         vertices = [];
         colores = [];
@@ -423,13 +437,15 @@
                 g = r;
                 b = r;
                 vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
-                colores.push(0.8*r,0.6*g,0.5*b,1.0);
+                b = 0.5*b;
+                if(agua[i][j] == 1) b = 1;
+                colores.push(0.8*r,0.6*g,b,1.0);
             }
 
         var v2 = [];
         var c2 = [];
         // se obtiene el orden de los vertices
-        // para poder implementar triangle strip
+        // para poder visualizar un triangle strip
         // a partir de un conjunto de puntos
         var ind = tstrip();
 
@@ -541,7 +557,7 @@
         initShaders(gl2);
         initShaders(gl);
  
-        dib();
+        dib(true);
     }
 
  
@@ -560,18 +576,14 @@
             2-H (dimensi&oacute;n fractal): <input type="text" value="0.9" id="H" size=5 />
             Angulo: <input type="text" value="0" id="angulo" size=5 />
             Resoluci&oacute;n <input type="text" value="9" id="maxlevel" size=5 />
-            Agregar ruido: 
-           <select id="addition">
-                <option value=true selected >Si</option>
-                <option value=false >No</option>
-           </select>
+            Nivel del mar <input type="text" value="0.5" id="nivel" size=5 />
             Tipo:
            <select id="modo">
                 <option value=0 >Nube</option>
                 <option value=1 selected>Terreno</option>
                 <option value=2 >Mapa de alturas</option>
            </select>
-           <input type="button" value="Calcular" onclick="dib()" />
+           <input type="button" value="Calcular" onclick="dib(true)" /> 
         </td>
     </tr>
   </table>
@@ -586,7 +598,13 @@
     </tr>
 El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.<br/>
 Se pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.<br/>
-A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representacion 3D de los datos, simulando un terreno.
+A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representaci&oacute;n 3D de los datos, simulando un terreno.
+<br/>
+El &aacute;ngulo (entre 0 y 1.57) controla la orientaci&oacute;n del observador. Si es 0, el terreo se visualiza desde su base. Si es 1.57 se observa desde arriba. 
+<br/>
+El mapa de la derecha se encuentra escalado para una mejor visualizaci&oacute;n.
+<br/>
+La resoluci&oacute;n (entre 0 y 9) establece la cantidad de valores en X e Y que forman el mapa (de 1 a 512).
     </table>
     </div>
 </body> 
