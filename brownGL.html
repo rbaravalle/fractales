@@ -438,8 +438,9 @@
                 b = r;
                 vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
                 b = 0.5*b;
-                if(agua[i][j] == 1) b = 1;
-                colores.push(0.8*r,0.6*g,b,1.0);
+                var f = 1;
+                if(agua[i][j] == 1) { b = 1; f = 0.5;}
+                colores.push(0.8*f*r,0.6*f*g,b,1.0);
             }
 
         var v2 = [];
@@ -466,9 +467,9 @@
 
     function mapear(modo,r,g,b) {
         if(modo == 1) { // terrenos
-            if(r < 100/255) {b=2*r; g = r = 0;}
+            if(r < 50/255) {b=1-3*r; g = r = 0;}
             else { if(r < 150/255) {g = r; r = 0; b = 0;}
-            else { if(r > 220/255) {g = b = r;} else {g = 100/255; b = 0;} } }
+            else { if(r > 220/255) {g = b = r;} else {g = 150/255; b = 0;} } }
         }
         else { // nubes
             if(modo != 2) {
