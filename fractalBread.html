@@ -1,0 +1,666 @@
+<html> 
+ 
+<head> 
+<title>Movimiento Browniano Fraccional</title> 
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"> 
+ 
+<script type="text/javascript" src="shaders.js"></script> 
+
+<!-- Shaders - ignorar en esta leccion -->
+<script id="shader-fs" type="x-shader/x-fragment"> 
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_FragColor = vec4(vColor);
+    }
+</script> 
+ 
+<script id="shader-vs" type="x-shader/x-vertex"> 
+    attribute vec2 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_Position = vec4(aVertexPosition,0.0,1.0);
+        vColor = aVertexColor;
+    }
+</script> 
+<!--// ignorar en esta leccion -->
+
+
+ 
+
+<script type="text/javascript"> 
+
+    // variable que sirve de interfaz a opengl
+    var gl, gl2;
+
+    // variable que se utilizara como buffer para los vertices del triangulo
+    var triangleVertexPositionBuffer;
+    var colorBuffer;
+    var positionBuffer3D;
+    var colorBuffer3D;
+    var maximo, minimo;
+    var agua,nivel;
+
+    var k;
+    var Z; // arreglo con los valores
+
+    var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
+    var maxlevel;
+    var maxd;
+    var H,addition,modo,GaussFac,GaussAdd,Nrand;
+    var vertices,colores;
+    var fs, fs, Ia;
+    var phi;
+
+    function initGL(canvas,canvas2) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+            gl2 = canvas2.getContext("experimental-webgl");
+            gl2.viewportWidth = canvas2.width;
+            gl2.viewportHeight = canvas2.height;
+        } catch (e) {
+            alert("No es posible inicializar WebGL");
+        }
+        if (!gl || !gl2) {
+            alert("No es posible inicializar WebGL");
+        }
+    }
+ 
+ 
+    function initBuffers() {
+        triangleVertexPositionBuffer = gl.createBuffer();
+        colorBuffer = gl.createBuffer();
+
+        // se asocian estos vertices con el buffer triangleVertexPositionBuffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+
+        triangleVertexPositionBuffer.numItems = vertices.length/2;
+        colorBuffer.numItems = vertices.length/4;
+        colorBuffer.sizeItem = 4;
+    }
+
+    function initBuffers3D() {
+        positionBuffer3D = gl2.createBuffer();
+        colorBuffer3D = gl2.createBuffer();
+
+        // se asocian estos vertices con el buffer triangleVertexPositionBuffer
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, positionBuffer3D);
+        gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(vertices), gl2.STATIC_DRAW);
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, colorBuffer3D);
+        gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(colores), gl2.STATIC_DRAW);
+
+        positionBuffer3D.numItems = vertices.length/2;
+
+        colorBuffer3D.numItems = vertices.length/4;
+        colorBuffer3D.sizeItem = 4;
+    }
+
+    function pscalar(a,b) {
+        return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+    }
+
+    function prod(s,v) {
+        return [s*v[0],s*v[1],s*v[2]];
+    }
+    function resta(v1,v2) {
+        return [v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]];
+    }
+
+    function norm(l) {
+        var lmod = Math.sqrt(l[0]*l[0]+l[1]*l[1]+l[2]*l[2]); // modulo del vector l
+        return [l[0]/lmod,l[1]/lmod,l[2]/lmod]; // se normaliza l
+    }
+
+    function P(phi,y,z) {
+        return Math.floor((maxd-1)*(y*Math.sin(phi)+z*Math.cos(phi)));
+    }
+
+    function I(phi,x,y,z) {
+        var dx,dy,dz;
+        if(x < maxd) dx = z - Z[x+1][y];
+        else dx = z; // ?
+        if(y > 0) dy = Z[x][y-1] - z;
+        else dy = z;
+        dz = 1/(maxd-1);
+
+        var r = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+        var n = [dx/r,dy/r,dz/r]; // normal
+
+        var luz = [0.0,0.0,4.0]; // posicion de la luz
+        var l = [luz[0]-x,luz[1]-y,luz[2]-z]; // luz - posicion
+        l = norm(l);
+
+        var theta = pscalar(n,l);
+        var a  = 2*Math.cos(theta);
+        var reflected = resta([a*n[0],a*n[1],a*n[2]],l);
+
+        var v = [0,-Math.cos(phi),Math.sin(phi)]; // view vector
+
+        var alpha = pscalar(norm(reflected),norm(v));
+        
+        if(Math.cos(phi) < 0) return Ia;
+        else { return Ia + fd*theta + fs*Math.pow(alpha,2); // phong
+            }
+    }
+
+    function displayHeightField(phi) {
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                if(Z[i][j] > maximo) maximo = Z[i][j];
+                if(Z[i][j] < minimo) minimo = Z[i][j];
+            }
+
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] = sc(Z[i][j]);
+        }
+
+
+        var X = Y = [];
+        var intens = [];
+        for(var i = 0; i <= maxd - 1; i++) {
+            X[i] = i/(maxd-1);
+            Y[i] = i/(maxd-1);
+        }
+
+        for(var i = 0; i <= maxd-1; i++) {
+            intens[i] = [];
+            for(var k = 0; k <= maxd + maxd; k++) intens[i][k] = 0;
+            var p0 = P(phi,Y[0],Z[i][0]);
+            var horizon = p0;
+
+            var last = Z[i][0];
+            for(var j = 1; j <= maxd - 1; j++) {
+                var p1 = P(phi,Y[j],Z[i][j]);
+                if(p1 > horizon) {
+                    intens[i][p1] = I(phi,i,j,Z[i][j]);
+                    if(Z[i][j] <= sc(nivel)) { agua[i][p1] = 1;}
+                    var p = p1 - 1;
+                    while(p > horizon) {
+                        var h = (p-p0)/(p1-p0);
+                        intens[i][p] = (1-h)*I(phi,i,j-1,Z[i][j-1])
+                                     + h*intens[i][p1];
+
+                        p -= 1;
+                        if(Z[i][j-1] <= sc(nivel)) agua[i][p] = 1;
+                    }
+                    horizon = p1;
+                }
+                p0 = p1;                
+            }   
+        }
+        return intens;        
+    }
+ 
+    function init_variables() {
+        Z = [];
+        agua = [];
+        vertices = [];
+        colores = [];
+        nivel = parseFloat(document.getElementById('nivel').value);
+        phi = parseFloat(document.getElementById('angulo').value);
+        H = parseFloat(document.getElementById('H').value);
+        addition = true;
+        modo = document.getElementById('modo').value;
+
+        maxlevel = document.getElementById('maxlevel').value;
+        maxd = Math.pow(2,maxlevel);
+        for(var i = 0; i <= maxd; i++) {
+            Z[i] = [];
+            agua[i] = [];
+            for(var j = 0; j < maxd; j++) {
+                Z[i][j] = 0;
+                agua[i][j] = 0;
+            }
+        }
+        Nrand = 16;
+        var g = init_gauss();
+        GaussFac = g[0];
+        GaussAdd = g[1];
+        fs = 0.4;
+        fd = 0.6;
+        Ia = 0.2; // ambiente
+        maximo = 0;
+        minimo = 0;
+    }
+
+    function init_gauss() {
+        var Arand = 1
+        var GaussAdd = Math.sqrt(3*Nrand);
+        var GaussFac = 2*GaussAdd/(Nrand*Arand);
+        return [GaussFac,GaussAdd];
+    }
+
+    function gauss() {
+        var sum = 0;
+        for(var i = 0; i < Nrand; i++) {
+            sum += Math.random();
+        }
+
+        return GaussFac*sum - GaussAdd;
+    }
+
+    function f4(delta, x0, x1, x2, x3) {
+        return (x0+x1+x2+x3)/4 + delta*gauss();
+    }
+
+    function f3(delta, x0,x1,x2 ) {
+        return (x0+x1+x2)/3 + delta*gauss();
+    }
+
+    function sc(z,i,j) {
+        var d = (maximo-minimo)/1.5;
+        minn = minimo-d;
+        maxx = maximo+d;
+        return (z-minn)/(maxx-minn);
+    }
+
+    function MidPointFM2D(addition, H, maxlevel) {
+       var N = maxd;       
+       var sigma = 0.9; // ??
+       var delta = sigma;
+
+       var Z = [];
+
+        for(var i = 0; i <= maxd; i++) {
+            Z[i] = [];
+            for(var j = 0; j < maxd; j++) {
+                Z[i][j] = 0;
+            }
+        }
+
+       Z[0][0] = delta*gauss();
+       Z[0][N] = delta*gauss();
+       Z[N][0] = delta*gauss();
+       Z[N][N] = delta*gauss();
+
+       var D = N;
+       var d = N/2;
+
+       for(var stage = 1; stage <= maxlevel; stage++) {
+           delta *= Math.pow(0.5, 0.5*H);
+           for(var x = d; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                  Z[x][y] = f4(delta, Z[x+d][y+d], Z[x+d][y-d], Z[x-d][y+d], Z[x-d][y-d]);
+
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+
+          delta *= Math.pow(0.5,0.5*H);
+
+          for(var x = d; x <= N-d; x+=D) {
+              Z[x][0] = f3(delta,Z[x+d][0],Z[x-d][0],Z[x][d]);
+              Z[x][N] = f3(delta,Z[x+d][N],Z[x-d][N],Z[x][N-d]);
+              Z[0][x] = f3(delta,Z[0][x+d],Z[0][x-d],Z[d][x]);
+              Z[N][x] = f3(delta,Z[N][x+d],Z[N][x-d],Z[N-d][x]);
+          }
+
+          for(var x = d; x <= N-d; x+=D)
+              for(var y = D; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+
+          for(var x = D; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+                  
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+              for(var x = d; x <= N-d; x+=D)
+                  for(var y = d; y <= N-d; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+          D *= 0.5;
+          d *= 0.5;
+    }
+
+    return Z;
+
+    }
+
+    function dib() {
+        if(document.getElementById('maxlevel').value <= 9 && 
+           document.getElementById('angulo').value <= 1.57  &&
+           document.getElementById('angulo').value >= 0) {
+            dibujar();
+            dibujar3D();
+        }
+        else {
+            alert('Verifique que la resolucion sea menor o igual a 9 y que el angulo este entre 0 y 1.57');
+        }
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+
+    function tstrip() {
+        var ind = [];
+        var c = 0;
+        // algoritmo para lograr una triangulacion a partir de un conjunto de puntos
+        // para triangle_strip
+        // idea tomada de:
+        // http://dan.lecocq.us/wordpress/2009/12/25/triangle-strip-for-grids-a-construction/
+        for(var i = 0; i <= maxd-2; i+=2) {
+            var j;
+            for(j = 0; j <= maxd-1; j++) {
+                ind[c++] = i*maxd+j;
+                ind[c++] = i*maxd+j+maxd;
+            }
+            if(i < maxd-2) {
+                j--;
+                ind[c++] = i*maxd+(j)+maxd;
+                for(; i*maxd+j+maxd >= (i+1)*maxd+1; j--) {
+                    ind[c++] = (i+1)*maxd+j+maxd;
+                    ind[c++] = (i+1)*maxd+j-1;
+                }
+                ind[c++] = (i+1)*maxd+j+maxd;
+            }
+        }
+        return ind;
+    }
+
+    function maxim(a,b,c) {
+        var m = a;
+        if(b > m) m = b;
+        if(c > m) m = c;
+        return c;
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function calcular() {     
+        init_variables();
+
+
+        var cant = 12;
+        var ZA = [];
+        for(var i = 0; i < cant; i++) {
+            ZA[i] = MidPointFM2D(addition,H*=0.95,maxlevel);
+        }
+
+        Z1 = ZA[0];
+
+        Z = ZA[0];
+
+        var mmax;
+        mmax = 0;
+
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++) {
+                for(var k = 1; k  < cant; k++)
+                    if(ZA[k][i][j] > 0)
+                        Z[i][j] = Math.max(ZA[k][i][j],Z[i][j]);
+                if(Z[i][j] > mmax) mmax = Z[i][j];
+            }
+        }
+
+
+        var phi = 0;
+        
+        var peso = 0.5;
+
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                var r = Z1[i][j]/mmax; var g,b;
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                g = r;
+                b = r;
+                var c = mapear(modo,r,g,b);
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
+                colores.push(c[0],c[1],c[2],1.0);
+            }
+
+        // se obtiene el orden de los vertices
+        // para poder visualizar un triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        var v2 = [];
+        var c2 = [];
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
+
+    }
+
+    function calcular3D() {
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] *= (j/2)*0.75;
+        }
+
+        var intens = displayHeightField(phi);
+        vertices = [];
+        colores = [];
+
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                var r = intens[i][j];
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 1) r = g = b = 1;
+                g = r;
+                b = r;
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
+                b = 0.5*b;
+                var f = 1;
+                if(agua[i][j] == 1) { b = 1; f = 0.5;}
+                colores.push(0.8*f*r,0.6*f*g,b,1.0);
+            }
+
+        var v2 = [];
+        var c2 = [];
+        // se obtiene el orden de los vertices
+        // para poder visualizar un triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
+    }
+
+    function mapear(modo,r,g,b) {
+        if(modo == 1) { // terrenos
+            if(r < 50/255) {b=1-3*r; g = r = 0;}
+            else { if(r < 150/255) {g = r; r = 0; b = 0;}
+            else { if(r > 220/255) {g = b = r;} else {g = 150/255; b = 0;} } }
+        }
+        else { // nubes
+            if(modo != 2) {
+                b = 1.0;
+                if(r < 100/255) {r = 0; g = 0;}
+            }
+        }
+        if(modo == 3) { // corte de pan
+            var h = r*1.2;
+            r = h*148/255; g = h*142/255; b = h*122/255;
+        }
+        return [r,g,b];
+    }
+
+ 
+    function dibujar() {
+        // se calcula el algoritmo de desplazamiento del punto medio en 2D
+        
+calcular();
+
+        initBuffers();
+
+        // color de fondo de la escena
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // se dibuja en este viewport (subconjunto del espacio)
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+
+        // se permiten colores en el canvas
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexPositionAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexColorAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+        // se dibujan los buffers en pantalla
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);
+
+    } 
+
+    function dibujar3D() {
+        // calculamos el algoritmo de desplazamiento del punto medio en 2D
+        calcular3D();
+        initBuffers3D();
+
+        // color de fondo de la escena
+        gl2.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // se dibuja en este viewport (subconjunto del espacio)
+        gl2.viewport(0, 0, gl2.viewportWidth, gl2.viewportHeight);
+
+        // se permiten colores en el canvas
+        gl2.clear(gl2.COLOR_BUFFER_BIT);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, positionBuffer3D);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexPositionAttribute"
+        gl2.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl2.FLOAT, false, 0, 0);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, colorBuffer3D);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexColorAttribute"
+        gl2.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl2.FLOAT, false, 0, 0);
+
+        // se dibujan los buffers en pantalla
+        gl2.drawArrays(gl2.TRIANGLE_STRIP, 0, positionBuffer3D.numItems);
+
+    } 
+ 
+    function webGLStart() {
+        // se obtiene el objeto canvas del codigo html (como un objeto javascript)
+        var canvas = document.getElementById("canvas");
+        var canvas2 = document.getElementById("canvas2");
+
+        // inicializaciones
+        initGL(canvas, canvas2);
+        initShaders(gl2);
+        initShaders(gl);
+ 
+        dib(true);
+    }
+
+ 
+ </script> 
+</head> 
+ 
+ 
+<body onload="webGLStart();"> 
+    <div style="text-align:center; font-size:30px">Movimiento Browniano Fraccional</div>
+
+    <div id="canvas-container" style="align:center;">
+    <table >
+      
+    <tr>
+        <td>
+            2-H (dimensi&oacute;n fractal): <input type="text" value="0.9" id="H" size=5 />
+
+            Angulo: <input type="text" value="0" id="angulo" size=5 />
+            Resoluci&oacute;n <input type="text" value="9" id="maxlevel" size=5 />
+            Nivel del mar <input type="text" value="0.5" id="nivel" size=5 />
+            Tipo:
+           <select id="modo">
+                <option value=0 >Nube</option>
+                <option value=1 selected>Terreno</option>
+                <option value=3 selected>Pan</option>
+
+                <option value=2 >Mapa de alturas</option>
+           </select>
+           <input type="button" value="Calcular" onclick="dib(true)" /> 
+        </td>
+    </tr>
+  </table>
+    <table>
+    <tr>
+        <td>
+
+            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+        <td>
+            <canvas id="canvas2" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+    </tr>
+El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.<br/>
+Se pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.<br/>
+A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representaci&oacute;n 3D de los datos, simulando un terreno.
+
+<br/>
+El &aacute;ngulo (entre 0 y 1.57) controla la orientaci&oacute;n del observador. Si es 0, el terreno se visualiza desde su base. Si es 1.57 se observa desde arriba. 
+<br/>
+El mapa de la derecha se encuentra escalado para una mejor visualizaci&oacute;n.
+<br/>
+La resoluci&oacute;n (entre 0 y 9) establece la cantidad de valores en X e Y que forman el mapa (de 1 a 512).
+    </table>
+    </div>
+</body> 
+ 
+</html> 
+
