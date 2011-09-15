@@ -399,10 +399,11 @@
         init_variables();
 
 
-        var cant = 12;
+        var cant = 6;
         var ZA = [];
-        for(var i = 0; i < cant; i++) {
-            ZA[i] = MidPointFM2D(addition,H*=0.95,maxlevel);
+        for(var i = 0; i < cant; i+=2) {
+            ZA[i] = MidPointFM2D(addition,H,maxlevel);
+            ZA[i+1] = ZA[i];
         }
 
         Z1 = ZA[0];
@@ -414,9 +415,11 @@
 
         for(var i = 0; i < maxd; i++) {
             for(var j = 0; j < maxd; j++) {
-                for(var k = 1; k  < cant; k++)
-                    if(ZA[k][i][j] > 0)
-                        Z[i][j] = Math.max(ZA[k][i][j],Z[i][j]);
+                for(var k = 1; k  < cant; k++) {
+                    var val = ZA[k][i][j]+2;
+                    if(val > 0)
+                        Z[i][j] = Math.max(val*Math.pow(0.9,k),Z[i][j]);
+                }
                 if(Z[i][j] > mmax) mmax = Z[i][j];
             }
         }
@@ -428,7 +431,8 @@
 
         for(var i = 0; i < maxd; i++)
             for(var j = 0; j < maxd; j++) {
-                var r = Z1[i][j]/mmax; var g,b;
+                var r = 1.2*Z1[i][j]/mmax; var g,b;
+                r+=0.2;
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 g = r;
                 b = r;
@@ -521,7 +525,7 @@
         }
         if(modo == 3) { // corte de pan
             var h = r*1.2;
-            r = h*148/255; g = h*142/255; b = h*122/255;
+            r = h*156/255; g = h*142/255; b = h*122/255;
         }
         return [r,g,b];
     }
