@@ -1,0 +1,914 @@
+<html> 
+ 
+<head> 
+<title>Voronoi Noise</title> 
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"> 
+ 
+<script type="text/javascript" src="shaders.js"></script> 
+
+<!-- Shaders - ignorar en esta leccion -->
+<script id="shader-fs" type="x-shader/x-fragment"> 
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_FragColor = vec4(vColor);
+    }
+</script> 
+ 
+<script id="shader-vs" type="x-shader/x-vertex"> 
+    attribute vec2 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    varying vec4 vColor;
+ 
+    void main(void) {
+        gl_Position = vec4(aVertexPosition,0.0,1.0);
+        vColor = aVertexColor;
+    }
+</script> 
+<!--// ignorar en esta leccion -->
+
+
+ 
+
+<script type="text/javascript"> 
+
+    // variable que sirve de interfaz a opengl
+    var gl, gl2;
+
+    // variable que se utilizara como buffer para los vertices del triangulo
+    var triangleVertexPositionBuffer;
+    var colorBuffer;
+    var positionBuffer3D;
+    var colorBuffer3D;
+    var maximo, minimo;
+    var agua,nivel;
+    var sqr2 = Math.sqrt(2);
+    var sqr3 = Math.sqrt(3);
+    var tipo,distancia;
+
+    var k;
+    var Z; // arreglo con los valores
+
+    var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
+    var maxlevel;
+    var maxd;
+    var H,addition,modo,GaussFac,GaussAdd,Nrand;
+    var vertices,colores;
+    var fs, fs, Ia;
+    var phi;
+
+    function initGL(canvas,canvas2) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+            gl2 = canvas2.getContext("experimental-webgl");
+            gl2.viewportWidth = canvas2.width;
+            gl2.viewportHeight = canvas2.height;
+        } catch (e) {
+            alert("No es posible inicializar WebGL");
+        }
+        if (!gl || !gl2) {
+            alert("No es posible inicializar WebGL");
+        }
+    }
+ 
+ 
+    function initBuffers() {
+        triangleVertexPositionBuffer = gl.createBuffer();
+        colorBuffer = gl.createBuffer();
+
+        // se asocian estos vertices con el buffer triangleVertexPositionBuffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+
+        triangleVertexPositionBuffer.numItems = vertices.length/2;
+        colorBuffer.numItems = vertices.length/4;
+        colorBuffer.sizeItem = 4;
+    }
+
+    function initBuffers3D() {
+        positionBuffer3D = gl2.createBuffer();
+        colorBuffer3D = gl2.createBuffer();
+
+        // se asocian estos vertices con el buffer triangleVertexPositionBuffer
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, positionBuffer3D);
+        gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(vertices), gl2.STATIC_DRAW);
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, colorBuffer3D);
+        gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(colores), gl2.STATIC_DRAW);
+
+        positionBuffer3D.numItems = vertices.length/2;
+
+        colorBuffer3D.numItems = vertices.length/4;
+        colorBuffer3D.sizeItem = 4;
+    }
+
+    function pscalar(a,b) {
+        return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+    }
+
+    function prod(s,v) {
+        return [s*v[0],s*v[1],s*v[2]];
+    }
+    function resta(v1,v2) {
+        return [v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]];
+    }
+
+    function norm(l) {
+        var lmod = Math.sqrt(l[0]*l[0]+l[1]*l[1]+l[2]*l[2]); // modulo del vector l
+        return [l[0]/lmod,l[1]/lmod,l[2]/lmod]; // se normaliza l
+    }
+
+    function P(phi,y,z) {
+        return Math.floor((maxd-1)*(y*Math.sin(phi)+z*Math.cos(phi)));
+    }
+
+    function I(phi,x,y,z) {
+        var dx,dy,dz;
+        if(x < maxd) dx = z - Z[x+1][y];
+        else dx = z; // ?
+        if(y > 0) dy = Z[x][y-1] - z;
+        else dy = z;
+        dz = 1/(maxd-1);
+
+        var r = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+        var n = [dx/r,dy/r,dz/r]; // normal
+
+        var luz = [0.0,0.0,4.0]; // posicion de la luz
+        var l = [luz[0]-x,luz[1]-y,luz[2]-z]; // luz - posicion
+        l = norm(l);
+
+        var theta = pscalar(n,l);
+        var a  = 2*Math.cos(theta);
+        var reflected = resta([a*n[0],a*n[1],a*n[2]],l);
+
+        var v = [0,-Math.cos(phi),Math.sin(phi)]; // view vector
+
+        var alpha = pscalar(norm(reflected),norm(v));
+        
+        if(Math.cos(phi) < 0) return Ia;
+        else { return Ia + fd*theta + fs*Math.pow(alpha,2); // phong
+            }
+    }
+
+    function displayHeightField(phi) {
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                if(Z[i][j] > maximo) maximo = Z[i][j];
+                if(Z[i][j] < minimo) minimo = Z[i][j];
+            }
+
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] = sc(Z[i][j]);
+        }
+
+
+        var X = Y = [];
+        var intens = [];
+        for(var i = 0; i <= maxd - 1; i++) {
+            X[i] = i/(maxd-1);
+            Y[i] = i/(maxd-1);
+        }
+
+        for(var i = 0; i <= maxd-1; i++) {
+            intens[i] = [];
+            for(var k = 0; k <= maxd + maxd; k++) intens[i][k] = 0;
+            var p0 = P(phi,Y[0],Z[i][0]);
+            var horizon = p0;
+
+            var last = Z[i][0];
+            for(var j = 1; j <= maxd - 1; j++) {
+                var p1 = P(phi,Y[j],Z[i][j]);
+                if(p1 > horizon) {
+                    intens[i][p1] = I(phi,i,j,Z[i][j]);
+                    if(Z[i][j] <= sc(nivel)) { agua[i][p1] = 1;}
+                    var p = p1 - 1;
+                    while(p > horizon) {
+                        var h = (p-p0)/(p1-p0);
+                        intens[i][p] = (1-h)*I(phi,i,j-1,Z[i][j-1])
+                                     + h*intens[i][p1];
+
+                        p -= 1;
+                        if(Z[i][j-1] <= sc(nivel)) agua[i][p] = 1;
+                    }
+                    horizon = p1;
+                }
+                p0 = p1;                
+            }   
+        }
+        return intens;        
+    }
+ 
+    function init_variables() {
+        Z = [];
+        agua = [];
+        vertices = [];
+        colores = [];
+        nivel = parseFloat(document.getElementById('nivel').value);
+        phi = parseFloat(document.getElementById('angulo').value);
+        H = parseFloat(document.getElementById('H').value);
+        addition = true;
+        modo = document.getElementById('modo').value;
+
+        maxlevel = document.getElementById('maxlevel').value;
+        maxd = Math.pow(2,maxlevel);
+        for(var i = 0; i <= maxd; i++) {
+            Z[i] = [];
+            agua[i] = [];
+            for(var j = 0; j < maxd; j++) {
+                Z[i][j] = 0;
+                agua[i][j] = 0;
+            }
+        }
+        Nrand = 16;
+        var g = init_gauss();
+        GaussFac = g[0];
+        GaussAdd = g[1];
+        fs = 0.4;
+        fd = 0.6;
+        Ia = 0.2; // ambiente
+        maximo = 0;
+        minimo = 0;
+        tipo = document.getElementById('tipo').value;
+        distancia = document.getElementById('distancia').value;;
+    }
+
+    function init_gauss() {
+        var Arand = 1
+        var GaussAdd = Math.sqrt(3*Nrand);
+        var GaussFac = 2*GaussAdd/(Nrand*Arand);
+        return [GaussFac,GaussAdd];
+    }
+
+    function gauss() {
+        var sum = 0;
+        for(var i = 0; i < Nrand; i++) {
+            sum += Math.random();
+        }
+
+        return GaussFac*sum - GaussAdd;
+    }
+
+    function f4(delta, x0, x1, x2, x3) {
+        return (x0+x1+x2+x3)/4 + delta*gauss();
+    }
+
+    function f3(delta, x0,x1,x2 ) {
+        return (x0+x1+x2)/3 + delta*gauss();
+    }
+
+    function sc(z,i,j) {
+        var d = (maximo-minimo)/1.5;
+        minn = minimo-d;
+        maxx = maximo+d;
+        return (z-minn)/(maxx-minn);
+    }
+
+    function MidPointFM2D(addition, H, maxlevel) {
+       var N = maxd;       
+       var sigma = 0.9; // ??
+       var delta = sigma;
+
+       var Z = [];
+
+        for(var i = 0; i <= maxd; i++) {
+            Z[i] = [];
+            for(var j = 0; j < maxd; j++) {
+                Z[i][j] = 0;
+            }
+        }
+
+       Z[0][0] = delta*gauss();
+       Z[0][N] = delta*gauss();
+       Z[N][0] = delta*gauss();
+       Z[N][N] = delta*gauss();
+
+       var D = N;
+       var d = N/2;
+
+       for(var stage = 1; stage <= maxlevel; stage++) {
+           delta *= Math.pow(0.5, 0.5*H);
+           for(var x = d; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                  Z[x][y] = f4(delta, Z[x+d][y+d], Z[x+d][y-d], Z[x-d][y+d], Z[x-d][y-d]);
+
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+
+          delta *= Math.pow(0.5,0.5*H);
+
+          for(var x = d; x <= N-d; x+=D) {
+              Z[x][0] = f3(delta,Z[x+d][0],Z[x-d][0],Z[x][d]);
+              Z[x][N] = f3(delta,Z[x+d][N],Z[x-d][N],Z[x][N-d]);
+              Z[0][x] = f3(delta,Z[0][x+d],Z[0][x-d],Z[d][x]);
+              Z[N][x] = f3(delta,Z[N][x+d],Z[N][x-d],Z[N-d][x]);
+          }
+
+          for(var x = d; x <= N-d; x+=D)
+              for(var y = D; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+
+          for(var x = D; x <= N-d; x+=D)
+              for(var y = d; y <= N-d; y+=D)
+                 Z[x][y] = f4(delta, Z[x][y+d], Z[x][y-d], Z[x+d][y], Z[x-d][y]);
+                  
+          if(addition) {
+              for(var x = 0; x <= N; x+=D)
+                  for(var y = 0; y <= N; y+=D)
+                      Z[x][y] += delta*gauss();
+              for(var x = d; x <= N-d; x+=D)
+                  for(var y = d; y <= N-d; y+=D)
+                      Z[x][y] += delta*gauss();
+          }
+          D *= 0.5;
+          d *= 0.5;
+    }
+
+    return Z;
+
+    }
+
+    function dib() {
+        if(document.getElementById('maxlevel').value <= 9 && 
+           document.getElementById('angulo').value <= 1.57  &&
+           document.getElementById('angulo').value >= 0) {
+            dibujar();
+            dibujar3D();
+        }
+        else {
+            alert('Verifique que la resolucion sea menor o igual a 9 y que el angulo este entre 0 y 1.57');
+        }
+    }
+
+    function vabs(x,y) {
+        return Math.sqrt(x*x + y*y);
+    }
+
+    function prod(a,b,c,d) {
+        return [a*c-b*d,a*d+b*c];
+    }
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+
+    function tstrip() {
+        var ind = [];
+        var c = 0;
+        // algoritmo para lograr una triangulacion a partir de un conjunto de puntos
+        // para triangle_strip
+        // idea tomada de:
+        // http://dan.lecocq.us/wordpress/2009/12/25/triangle-strip-for-grids-a-construction/
+        for(var i = 0; i <= maxd-2; i+=2) {
+            var j;
+            for(j = 0; j <= maxd-1; j++) {
+                ind[c++] = i*maxd+j;
+                ind[c++] = i*maxd+j+maxd;
+            }
+            if(i < maxd-2) {
+                j--;
+                ind[c++] = i*maxd+(j)+maxd;
+                for(; i*maxd+j+maxd >= (i+1)*maxd+1; j--) {
+                    ind[c++] = (i+1)*maxd+j+maxd;
+                    ind[c++] = (i+1)*maxd+j-1;
+                }
+                ind[c++] = (i+1)*maxd+j+maxd;
+            }
+        }
+        return ind;
+    }
+
+    function maxim(a,b,c) {
+        var m = a;
+        if(b > m) m = b;
+        if(c > m) m = c;
+        return c;
+    }
+
+    function getLength(V) {
+        return Math.sqrt(getLength2(V));
+    }
+
+    function getLength2(V) {
+        return V[0]*V[0]+V[1]*V[1]+V[2]*V[2];
+    }
+
+    function getManhattan(V) {
+        var d=Math.abs(V[0])+Math.abs(V[1])+Math.abs(V[2]); return d*d;
+    }
+
+    function getChebyshev(V) {
+        var d=Math.max(Math.abs(x),Math.max(Math.abs(y),Math.abs(z))); return d*d;
+    }
+
+    function getQuadratic(V) {
+        x = V[0]; y = V[1]; z = V[2];
+        return getLength2(V)+x*y+x*z+y*z;
+    }
+
+    function getMinkowski(V) {
+        var p = 0.1; // ?
+        x = V[0]; y = V[1]; z = V[2];
+        return Math.pow(Math.pow(Math.abs(x), p)
+                      + Math.pow(Math.abs(y), p)
+                      + Math.pow(Math.abs(z), Math.E), 1.0/p);
+    }
+
+    function getMinkowski4(V) {
+        x = V[0]; y = V[1]; z = V[2];
+        return Math.pow(x*x*x*x+y*y*y*y+z*z*z*z,0.25);
+    }
+
+    function getMinkowski5(V) {
+        var d = Math.sqrt(Math.abs(x))+Math.sqrt(Math.abs(y))+Math.sqrt(Math.abs(z));
+        return d*d;
+    }
+
+    function calculate(x,y,z,dist) {
+        var da=[], pa=[];
+
+        var xi=Math.floor(x);
+        var yi=Math.floor(y);
+        var zi=Math.floor(z);
+        da[0]=da[1]=da[2]=da[3]=1000000;
+        var V;
+        for(var xx=xi-1; xx<=xi+1; ++xx) {
+        for(var yy=yi-1; yy<=yi+1; ++yy) {
+          for(var zz=zi-1; zz<=zi+1; ++zz) { // Things in this inner loop will happen 27 times:
+            var  p = getPoint(xx, yy, zz);
+            V = [x-(p[0]+xx), y-(p[1]+yy), z-(p[2]+zz)];
+            var d;
+            if(dist == 0) d = getLength(V);
+            if(dist == 1) d = getLength2(V);
+            if(dist == 2) d = getManhattan(V);
+            if(dist == 3) d = getQuadratic(V);
+            if(dist == 4) d = getChebyshev(V);
+            if(dist == 5) d = getMinkowski(V);
+            if(dist == 6) d = getMinkowski4(V);
+            if(dist == 7) d = getMinkowski5(V);
+
+            if(d<da[0]) {
+              da[3]=da[2];   da[ 2]=da[1];   da[ 1]=da[0];  da[0]=d; // Insert at 0
+              pa[9]=pa[6];   pa[10]=pa[7];   pa[11]=pa[8];
+              pa[6]=pa[3];   pa[ 7]=pa[4];   pa[ 8]=pa[5];
+              pa[3]=pa[0];   pa[ 4]=pa[1];   pa[ 5]=pa[2];
+              pa[0]=p[0]+xx; pa[ 1]=p[1]+yy; pa[ 2]=p[2]+zz;
+            }else if(d<da[1]) {
+              da[3]=da[2];   da[ 2]=da[1];   da[ 1]=d;            // Insert at 1
+              pa[9]=pa[6];   pa[10]=pa[7];   pa[11]=pa[8];
+              pa[6]=pa[3];   pa[ 7]=pa[4];   pa[ 8]=pa[5];
+              pa[3]=p[0]+xx; pa[ 4]=p[1]+yy; pa[ 5]=p[2]+zz;
+            }else if(d<da[2]) {
+              da[3]=da[2];   da[2]=d;                             // Insert at 2
+              pa[9]=pa[6];   pa[10]=pa[7];   pa[11]=pa[8];
+              pa[6]=p[0]+xx; pa[ 7]=p[1]+yy; pa[ 8]=p[2]+zz;
+            }else if(d<da[3]) {                                   // Insert at 3
+              da[3]=d;
+              pa[9]=p[0]+xx;  pa[10]=p[1]+yy;  pa[11]=p[2]+zz;
+            } } } }
+        return da;
+    }
+
+
+    function VoronoiGet(x, y, z, v, dist) {
+        var d, da, pa, sol;
+        if(v!='Difference21' && v!='Difference32' && v!='Crackle') {
+            da = calculate(x,y,z, dist);
+            d=da[v];
+        }
+
+
+        if(v == 0) {
+            da = calculate(x,y,z, dist);
+            d=da[0];
+        }
+
+        if(v == 1) {
+            da = calculate(x,y,z, dist);
+            d=da[1];
+        }
+
+        if(v == 2) {
+            da = calculate(x,y,z, dist);
+            d=da[2];
+        }
+
+        if(v == 3) {
+            da = calculate(x,y,z, dist);
+            d=da[3];
+        }
+        if(v == 4) {
+            da = calculate(x,y,z, dist);
+            d=da[1]-da[0];
+        }
+        if(v == 5) {
+            da = calculate(x,y,z, dist);
+            d=da[2]-da[1];
+        }
+        if(v == 6) {
+            d = Math.max(1.0,10*VoronoiGet(x,y,z,'Difference21', dist));
+        }
+
+        return d*sqr2/sqr3; // d*sqrt(2)/sqrt(3)
+    }
+
+function getPoint(x, y, z) {
+  var Index=[
+    0xA2,0xA0,0x19,0x3B,0xF8,0xEB,0xAA,0xEE,0xF3,0x1C,0x67,0x28,0x1D,0xED,0x00,0xDE,0x95,0x2E,0xDC,0x3F,0x3A,0x82,0x35,0x4D,0x6C,0xBA,0x36,0xD0,0xF6,0x0C,0x79,0x32,0xD1,0x59,0xF4,0x08,0x8B,0x63,0x89,0x2F,0xB8,0xB4,0x97,0x83,0xF2,0x8F,0x18,0xC7,0x51,0x14,0x65,0x87,0x48,0x20,0x42,0xA8,0x80,0xB5,0x40,0x13,0xB2,0x22,0x7E,0x57,
+    0xBC,0x7F,0x6B,0x9D,0x86,0x4C,0xC8,0xDB,0x7C,0xD5,0x25,0x4E,0x5A,0x55,0x74,0x50,0xCD,0xB3,0x7A,0xBB,0xC3,0xCB,0xB6,0xE2,0xE4,0xEC,0xFD,0x98,0x0B,0x96,0xD3,0x9E,0x5C,0xA1,0x64,0xF1,0x81,0x61,0xE1,0xC4,0x24,0x72,0x49,0x8C,0x90,0x4B,0x84,0x34,0x38,0xAB,0x78,0xCA,0x1F,0x01,0xD7,0x93,0x11,0xC1,0x58,0xA9,0x31,0xF9,0x44,0x6D,
+    0xBF,0x33,0x9C,0x5F,0x09,0x94,0xA3,0x85,0x06,0xC6,0x9A,0x1E,0x7B,0x46,0x15,0x30,0x27,0x2B,0x1B,0x71,0x3C,0x5B,0xD6,0x6F,0x62,0xAC,0x4F,0xC2,0xC0,0x0E,0xB1,0x23,0xA7,0xDF,0x47,0xB0,0x77,0x69,0x05,0xE9,0xE6,0xE7,0x76,0x73,0x0F,0xFE,0x6E,0x9B,0x56,0xEF,0x12,0xA5,0x37,0xFC,0xAE,0xD9,0x03,0x8E,0xDD,0x10,0xB9,0xCE,0xC9,0x8D,
+    0xDA,0x2A,0xBD,0x68,0x17,0x9F,0xBE,0xD4,0x0A,0xCC,0xD2,0xE8,0x43,0x3D,0x70,0xB7,0x02,0x7D,0x99,0xD8,0x0D,0x60,0x8A,0x04,0x2C,0x3E,0x92,0xE5,0xAF,0x53,0x07,0xE0,0x29,0xA6,0xC5,0xE3,0xF5,0xF7,0x4A,0x41,0x26,0x6A,0x16,0x5E,0x52,0x2D,0x21,0xAD,0xF0,0x91,0xFF,0xEA,0x54,0xFA,0x66,0x1A,0x45,0x39,0xCF,0x75,0xA4,0x88,0xFB,0x5D,
+    0xA2,0xA0,0x19,0x3B,0xF8,0xEB,0xAA,0xEE,0xF3,0x1C,0x67,0x28,0x1D,0xED,0x00,0xDE,0x95,0x2E,0xDC,0x3F,0x3A,0x82,0x35,0x4D,0x6C,0xBA,0x36,0xD0,0xF6,0x0C,0x79,0x32,0xD1,0x59,0xF4,0x08,0x8B,0x63,0x89,0x2F,0xB8,0xB4,0x97,0x83,0xF2,0x8F,0x18,0xC7,0x51,0x14,0x65,0x87,0x48,0x20,0x42,0xA8,0x80,0xB5,0x40,0x13,0xB2,0x22,0x7E,0x57,
+    0xBC,0x7F,0x6B,0x9D,0x86,0x4C,0xC8,0xDB,0x7C,0xD5,0x25,0x4E,0x5A,0x55,0x74,0x50,0xCD,0xB3,0x7A,0xBB,0xC3,0xCB,0xB6,0xE2,0xE4,0xEC,0xFD,0x98,0x0B,0x96,0xD3,0x9E,0x5C,0xA1,0x64,0xF1,0x81,0x61,0xE1,0xC4,0x24,0x72,0x49,0x8C,0x90,0x4B,0x84,0x34,0x38,0xAB,0x78,0xCA,0x1F,0x01,0xD7,0x93,0x11,0xC1,0x58,0xA9,0x31,0xF9,0x44,0x6D,
+    0xBF,0x33,0x9C,0x5F,0x09,0x94,0xA3,0x85,0x06,0xC6,0x9A,0x1E,0x7B,0x46,0x15,0x30,0x27,0x2B,0x1B,0x71,0x3C,0x5B,0xD6,0x6F,0x62,0xAC,0x4F,0xC2,0xC0,0x0E,0xB1,0x23,0xA7,0xDF,0x47,0xB0,0x77,0x69,0x05,0xE9,0xE6,0xE7,0x76,0x73,0x0F,0xFE,0x6E,0x9B,0x56,0xEF,0x12,0xA5,0x37,0xFC,0xAE,0xD9,0x03,0x8E,0xDD,0x10,0xB9,0xCE,0xC9,0x8D,
+    0xDA,0x2A,0xBD,0x68,0x17,0x9F,0xBE,0xD4,0x0A,0xCC,0xD2,0xE8,0x43,0x3D,0x70,0xB7,0x02,0x7D,0x99,0xD8,0x0D,0x60,0x8A,0x04,0x2C,0x3E,0x92,0xE5,0xAF,0x53,0x07,0xE0,0x29,0xA6,0xC5,0xE3,0xF5,0xF7,0x4A,0x41,0x26,0x6A,0x16,0x5E,0x52,0x2D,0x21,0xAD,0xF0,0x91,0xFF,0xEA,0x54,0xFA,0x66,0x1A,0x45,0x39,0xCF,0x75,0xA4,0x88,0xFB,0x5D,
+  ];
+
+  var Coords=[
+     0.536902, 0.020915, 0.501445, 0.216316, 0.517036, 0.822466, 0.965315, 0.377313, 0.678764, 0.744545, 0.097731, 0.396357, 0.247202, 0.520897,
+     0.613396, 0.542124, 0.146813, 0.255489, 0.810868, 0.638641, 0.980742, 0.292316, 0.357948, 0.114382, 0.861377, 0.629634, 0.722530, 0.714103,
+     0.048549, 0.075668, 0.564920, 0.162026, 0.054466, 0.411738, 0.156897, 0.887657, 0.599368, 0.074249, 0.170277, 0.225799, 0.393154, 0.301348,
+     0.057434, 0.293849, 0.442745, 0.150002, 0.398732, 0.184582, 0.915200, 0.630984, 0.974040, 0.117228, 0.795520, 0.763238, 0.158982, 0.616211,
+     0.250825, 0.906539, 0.316874, 0.676205, 0.234720, 0.667673, 0.792225, 0.273671, 0.119363, 0.199131, 0.856716, 0.828554, 0.900718, 0.705960,
+     0.635923, 0.989433, 0.027261, 0.283507, 0.113426, 0.388115, 0.900176, 0.637741, 0.438802, 0.715490, 0.043692, 0.202640, 0.378325, 0.450325,
+     0.471832, 0.147803, 0.906899, 0.524178, 0.784981, 0.051483, 0.893369, 0.596895, 0.275635, 0.391483, 0.844673, 0.103061, 0.257322, 0.708390,
+     0.504091, 0.199517, 0.660339, 0.376071, 0.038880, 0.531293, 0.216116, 0.138672, 0.907737, 0.807994, 0.659582, 0.915264, 0.449075, 0.627128,
+     0.480173, 0.380942, 0.018843, 0.211808, 0.569701, 0.082294, 0.689488, 0.573060, 0.593859, 0.216080, 0.373159, 0.108117, 0.595539, 0.021768,
+     0.380297, 0.948125, 0.377833, 0.319699, 0.315249, 0.972805, 0.792270, 0.445396, 0.845323, 0.372186, 0.096147, 0.689405, 0.423958, 0.055675,
+     0.117940, 0.328456, 0.605808, 0.631768, 0.372170, 0.213723, 0.032700, 0.447257, 0.440661, 0.728488, 0.299853, 0.148599, 0.649212, 0.498381,
+     0.049921, 0.496112, 0.607142, 0.562595, 0.990246, 0.739659, 0.108633, 0.978156, 0.209814, 0.258436, 0.876021, 0.309260, 0.600673, 0.713597,
+     0.576967, 0.641402, 0.853930, 0.029173, 0.418111, 0.581593, 0.008394, 0.589904, 0.661574, 0.979326, 0.275724, 0.111109, 0.440472, 0.120839,
+     0.521602, 0.648308, 0.284575, 0.204501, 0.153286, 0.822444, 0.300786, 0.303906, 0.364717, 0.209038, 0.916831, 0.900245, 0.600685, 0.890002,
+     0.581660, 0.431154, 0.705569, 0.551250, 0.417075, 0.403749, 0.696652, 0.292652, 0.911372, 0.690922, 0.323718, 0.036773, 0.258976, 0.274265,
+     0.225076, 0.628965, 0.351644, 0.065158, 0.080340, 0.467271, 0.130643, 0.385914, 0.919315, 0.253821, 0.966163, 0.017439, 0.392610, 0.478792,
+     0.978185, 0.072691, 0.982009, 0.097987, 0.731533, 0.401233, 0.107570, 0.349587, 0.479122, 0.700598, 0.481751, 0.788429, 0.706864, 0.120086,
+     0.562691, 0.981797, 0.001223, 0.192120, 0.451543, 0.173092, 0.108960, 0.549594, 0.587892, 0.657534, 0.396365, 0.125153, 0.666420, 0.385823,
+     0.890916, 0.436729, 0.128114, 0.369598, 0.759096, 0.044677, 0.904752, 0.088052, 0.621148, 0.005047, 0.452331, 0.162032, 0.494238, 0.523349,
+     0.741829, 0.698450, 0.452316, 0.563487, 0.819776, 0.492160, 0.004210, 0.647158, 0.551475, 0.362995, 0.177937, 0.814722, 0.727729, 0.867126,
+     0.997157, 0.108149, 0.085726, 0.796024, 0.665075, 0.362462, 0.323124, 0.043718, 0.042357, 0.315030, 0.328954, 0.870845, 0.683186, 0.467922,
+     0.514894, 0.809971, 0.631979, 0.176571, 0.366320, 0.850621, 0.505555, 0.749551, 0.750830, 0.401714, 0.481216, 0.438393, 0.508832, 0.867971,
+     0.654581, 0.058204, 0.566454, 0.084124, 0.548539, 0.902690, 0.779571, 0.562058, 0.048082, 0.863109, 0.079290, 0.713559, 0.783496, 0.265266,
+     0.672089, 0.786939, 0.143048, 0.086196, 0.876129, 0.408708, 0.229312, 0.629995, 0.206665, 0.207308, 0.710079, 0.341704, 0.264921, 0.028748,
+     0.629222, 0.470173, 0.726228, 0.125243, 0.328249, 0.794187, 0.741340, 0.489895, 0.189396, 0.724654, 0.092841, 0.039809, 0.860126, 0.247701,
+     0.655331, 0.964121, 0.672536, 0.044522, 0.690567, 0.837238, 0.631520, 0.953734, 0.352484, 0.289026, 0.034152, 0.852575, 0.098454, 0.795529,
+     0.452181, 0.826159, 0.186993, 0.820725, 0.440328, 0.922137, 0.704592, 0.915437, 0.738183, 0.733461, 0.193798, 0.929213, 0.161390, 0.318547,
+     0.888751, 0.430968, 0.740837, 0.193544, 0.872253, 0.563074, 0.274598, 0.347805, 0.666176, 0.449831, 0.800991, 0.588727, 0.052296, 0.714761,
+     0.420620, 0.570325, 0.057550, 0.210888, 0.407312, 0.662848, 0.924382, 0.895958, 0.775198, 0.688605, 0.025721, 0.301913, 0.791408, 0.500602,
+     0.831984, 0.828509, 0.642093, 0.494174, 0.525880, 0.446365, 0.440063, 0.763114, 0.630358, 0.223943, 0.333806, 0.906033, 0.498306, 0.241278,
+     0.427640, 0.772683, 0.198082, 0.225379, 0.503894, 0.436599, 0.016503, 0.803725, 0.189878, 0.291095, 0.499114, 0.151573, 0.079031, 0.904618,
+     0.708535, 0.273900, 0.067419, 0.317124, 0.936499, 0.716511, 0.543845, 0.939909, 0.826574, 0.715090, 0.154864, 0.750150, 0.845808, 0.648108,
+     0.556564, 0.644757, 0.140873, 0.799167, 0.632989, 0.444245, 0.471978, 0.435910, 0.359793, 0.216241, 0.007633, 0.337236, 0.857863, 0.380247,
+     0.092517, 0.799973, 0.919000, 0.296798, 0.096989, 0.854831, 0.165369, 0.568475, 0.216855, 0.020457, 0.835511, 0.538039, 0.999742, 0.620226,
+     0.244053, 0.060399, 0.323007, 0.294874, 0.988899, 0.384919, 0.735655, 0.773428, 0.549776, 0.292882, 0.660611, 0.593507, 0.621118, 0.175269,
+     0.682119, 0.794493, 0.868197, 0.632150, 0.807823, 0.509656, 0.482035, 0.001780, 0.259126, 0.358002, 0.280263, 0.192985, 0.290367, 0.208111,
+     0.917633, 0.114422, 0.925491, 0.981110, 0.255570, 0.974862, 0.016629, 0.552599, 0.575741, 0.612978, 0.615965, 0.803615, 0.772334, 0.089745,
+     0.838812, 0.634542, 0.113709, 0.755832, 0.577589, 0.667489, 0.529834, 0.325660, 0.817597, 0.316557, 0.335093, 0.737363, 0.260951, 0.737073,
+     0.049540, 0.735541, 0.988891, 0.299116, 0.147695, 0.417271, 0.940811, 0.524160, 0.857968, 0.176403, 0.244835, 0.485759, 0.033353, 0.280319,
+     0.750688, 0.755809, 0.924208, 0.095956, 0.962504, 0.275584, 0.173715, 0.942716, 0.706721, 0.078464, 0.576716, 0.804667, 0.559249, 0.900611,
+     0.646904, 0.432111, 0.927885, 0.383277, 0.269973, 0.114244, 0.574867, 0.150703, 0.241855, 0.272871, 0.199950, 0.079719, 0.868566, 0.962833,
+     0.789122, 0.320025, 0.905554, 0.234876, 0.991356, 0.061913, 0.732911, 0.785960, 0.874074, 0.069035, 0.658632, 0.309901, 0.023676, 0.791603,
+     0.764661, 0.661278, 0.319583, 0.829650, 0.117091, 0.903124, 0.982098, 0.161631, 0.193576, 0.670428, 0.857390, 0.003760, 0.572578, 0.222162,
+     0.114551, 0.420118, 0.530404, 0.470682, 0.525527, 0.764281, 0.040596, 0.443275, 0.501124, 0.816161, 0.417467, 0.332172, 0.447565, 0.614591,
+     0.559246, 0.805295, 0.226342, 0.155065, 0.714630, 0.160925, 0.760001, 0.453456, 0.093869, 0.406092, 0.264801, 0.720370, 0.743388, 0.373269,
+     0.403098, 0.911923, 0.897249, 0.147038, 0.753037, 0.516093, 0.739257, 0.175018, 0.045768, 0.735857, 0.801330, 0.927708, 0.240977, 0.591870,
+     0.921831, 0.540733, 0.149100, 0.423152, 0.806876, 0.397081, 0.061100, 0.811630, 0.044899, 0.460915, 0.961202, 0.822098, 0.971524, 0.867608,
+     0.773604, 0.226616, 0.686286, 0.926972, 0.411613, 0.267873, 0.081937, 0.226124, 0.295664, 0.374594, 0.533240, 0.237876, 0.669629, 0.599083,
+     0.513081, 0.878719, 0.201577, 0.721296, 0.495038, 0.079760, 0.965959, 0.233090, 0.052496, 0.714748, 0.887844, 0.308724, 0.972885, 0.723337,
+     0.453089, 0.914474, 0.704063, 0.823198, 0.834769, 0.906561, 0.919600, 0.100601, 0.307564, 0.901977, 0.468879, 0.265376, 0.885188, 0.683875,
+     0.868623, 0.081032, 0.466835, 0.199087, 0.663437, 0.812241, 0.311337, 0.821361, 0.356628, 0.898054, 0.160781, 0.222539, 0.714889, 0.490287,
+     0.984915, 0.951755, 0.964097, 0.641795, 0.815472, 0.852732, 0.862074, 0.051108, 0.440139, 0.323207, 0.517171, 0.562984, 0.115295, 0.743103,
+     0.977914, 0.337596, 0.440694, 0.535879, 0.959427, 0.351427, 0.704361, 0.010826, 0.131162, 0.577080, 0.349572, 0.774892, 0.425796, 0.072697,
+     0.500001, 0.267322, 0.909654, 0.206176, 0.223987, 0.937698, 0.323423, 0.117501, 0.490308, 0.474372, 0.689943, 0.168671, 0.719417, 0.188928,
+     0.330464, 0.265273, 0.446271, 0.171933, 0.176133, 0.474616, 0.140182, 0.114246, 0.905043, 0.713870, 0.555261, 0.951333
+  ];
+  var ind = 3*Index[(Index[(Index[z]+y)]+x)];
+  return [Coords[ind],Coords[ind+1],Coords[ind+2]];
+}
+
+    function voronoi(tipo,dist) {
+        var Z = [];
+        for(var i = 0; i < maxd; i++) {
+            Z[i] = []; Z[i][j] = 0;
+            for(var j = 0; j < maxd; j++) {
+               Z[i][j] = VoronoiGet(i*0.01,j*0.01, 0.5, tipo, dist);
+            }
+        }
+        return Z;
+    }
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function calcular() {     
+        init_variables();
+
+        var cant = 1;
+        var maxx = 0;
+
+        //Z = voronoi('Difference32','Length2');
+        var ZA = MidPointFM2D(addition,H,maxlevel);
+
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++) {
+               Z[i][j] = VoronoiGet(i*0.01,j*0.01, 0.5, tipo, distancia);
+            }
+        }
+
+        /*for(var i = 1; i < cant; i+=2) {
+            ZA[i] = MidPointFM2D(addition,H,maxlevel);
+            ZA[i+1] = ZA[i];
+        }
+
+        Z1 = ZA[0];
+
+        Z = ZA[0];*/
+
+
+
+        /*for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++) {
+                for(var k = 1; k  < cant; k++) {
+                    var val = ZA[k][i][j]+2;
+                    if(val > 0)
+                        Z[i][j] = Math.max(val*Math.pow(0.9,k),Z[i][j]);
+                }
+                if(Z[i][j] > mmax) mmax = Z[i][j];
+            }
+        }*/
+
+
+        var phi = 0;
+        
+        var peso = 0.5;
+
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 1) { r = 1; g = 1; b = 1;}
+                var r = 0.9*Z[i][j]+0.1*ZA[i][j]; var g,b;
+                g = r;
+                b = r;
+                var c = [r,g,b];//mapear(modo,r,g,b);
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
+                colores.push(c[0],c[1],c[2],1.0);
+            }
+
+        // se obtiene el orden de los vertices
+        // para poder visualizar un triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        var v2 = [];
+        var c2 = [];
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
+
+    }
+
+    function calcular3D() {
+        for(var i = 0; i < maxd; i++) {
+            for(var j = 0; j < maxd; j++)
+                Z[i][j] *= (j/2)*0.75;
+        }
+
+        var intens = displayHeightField(phi);
+        vertices = [];
+        colores = [];
+
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++) {
+                var r = intens[i][j];
+                if(r < 0) { r = 0; g = 0; b = 0;}
+                if(r > 1) r = g = b = 1;
+                g = r;
+                b = r;
+                vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
+                b = 0.5*b;
+                var f = 1;
+                if(agua[i][j] == 1) { b = 1; f = 0.5;}
+                colores.push(0.8*f*r,0.6*f*g,b,1.0);
+            }
+
+        var v2 = [];
+        var c2 = [];
+        // se obtiene el orden de los vertices
+        // para poder visualizar un triangle strip
+        // a partir de un conjunto de puntos
+        var ind = tstrip();
+
+        // se reordenan los vertices a partir del orden establecido
+        var j = 0,k = 0;
+        for(var i = 0; i < ind.length; i++) {
+            v2[j++] = vertices[2*ind[i]];
+            v2[j++] = vertices[2*ind[i]+1];
+            c2[k++] = colores[4*ind[i]];
+            c2[k++] = colores[4*ind[i]+1];
+            c2[k++] = colores[4*ind[i]+2];
+            c2[k++] = 1.0;
+        }
+
+        vertices = v2;
+        colores = c2;
+    }
+
+    function mapear(modo,r,g,b) {
+        if(modo == 1) { // terrenos
+            if(r < 50/255) {b=1-3*r; g = r = 0;}
+            else { if(r < 150/255) {g = r; r = 0; b = 0;}
+            else { if(r > 220/255) {g = b = r;} else {g = 150/255; b = 0;} } }
+        }
+        else { // nubes
+            if(modo != 2) {
+                b = 1.0;
+                if(r < 100/255) {r = 0; g = 0;}
+            }
+        }
+        if(modo == 3) { // corte de pan
+            var h = r*1.2;
+            r = h*156/255; g = h*142/255; b = h*122/255;
+        }
+        return [r,g,b];
+    }
+
+ 
+    function dibujar() {
+        // se calcula el algoritmo de desplazamiento del punto medio en 2D
+        
+calcular();
+
+        initBuffers();
+
+        // color de fondo de la escena
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // se dibuja en este viewport (subconjunto del espacio)
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+
+        // se permiten colores en el canvas
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexPositionAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexColorAttribute"
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+        // se dibujan los buffers en pantalla
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);
+
+    } 
+
+    function dibujar3D() {
+        // calculamos el algoritmo de desplazamiento del punto medio en 2D
+        calcular3D();
+        initBuffers3D();
+
+        // color de fondo de la escena
+        gl2.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // se dibuja en este viewport (subconjunto del espacio)
+        gl2.viewport(0, 0, gl2.viewportWidth, gl2.viewportHeight);
+
+        // se permiten colores en el canvas
+        gl2.clear(gl2.COLOR_BUFFER_BIT);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, positionBuffer3D);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexPositionAttribute"
+        gl2.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 2, gl2.FLOAT, false, 0, 0);
+
+        // se establece que el buffer triangleVertexPositionBuffer es el buffer actual
+        gl2.bindBuffer(gl2.ARRAY_BUFFER, colorBuffer3D);
+
+        // por lo tanto se le aplica la siguiente operacion al mismo.
+        // Establece un vinculo entre el buffer y "shaderProgram.vertexColorAttribute"
+        gl2.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl2.FLOAT, false, 0, 0);
+
+        // se dibujan los buffers en pantalla
+        gl2.drawArrays(gl2.TRIANGLE_STRIP, 0, positionBuffer3D.numItems);
+
+    } 
+ 
+    function webGLStart() {
+        // se obtiene el objeto canvas del codigo html (como un objeto javascript)
+        var canvas = document.getElementById("canvas");
+        var canvas2 = document.getElementById("canvas2");
+
+        // inicializaciones
+        initGL(canvas, canvas2);
+        initShaders(gl2);
+        initShaders(gl);
+ 
+        dib(true);
+    }
+
+ 
+ </script> 
+</head> 
+ 
+ 
+<body onload="webGLStart();"> 
+    <div style="text-align:center; font-size:30px">Voronoi Noise</div>
+
+    <div id="canvas-container" style="align:center;">
+    <table >
+      
+    <tr>
+        <td>
+            2-H (dimensi&oacute;n fractal): <input type="text" value="0.9" id="H" size=5 />
+
+            Angulo: <input type="text" value="0" id="angulo" size=5 />
+            Resoluci&oacute;n <input type="text" value="8" id="maxlevel" size=5 />
+            Nivel del mar <input type="text" value="0.5" id="nivel" size=5 />
+            Tipo:
+           <select id="modo">
+                <option value=0 >Nube</option>
+                <option value=1 selected>Terreno</option>
+                <option value=3 selected>Pan</option>
+
+                <option value=2 >Mapa de alturas</option>
+           </select>
+
+           <select id="tipo">
+                <option value=0 selected >First</option>
+                <option value=1 >Second</option>
+                <option value=2 >Third</option>
+                <option value=3 >Fourth</option>
+                <option value=4 >Difference21</option>
+                <option value=5 >Difference32</option>
+                <option value=6 >Crackle</option>
+           </select>
+           <select id="distancia">
+                <option value=0 selected >Length</option>
+                <option value=1 >Length2</option>
+                <option value=2 >Manhattan</option>
+                <option value=3 >Quadratic</option>
+                <option value=4 >Chebyshev</option>
+                <option value=5 >Minkowsky</option>
+                <option value=6 >Minkowsky4</option>
+                <option value=7 >Minkowsky5</option>
+           </select>
+           <input type="button" value="Calcular" onclick="dib(true)" /> 
+        </td>
+    </tr>
+  </table>
+    <table>
+    <tr>
+        <td>
+
+            <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+        <td>
+            <canvas id="canvas2" style="background-color:black;" width="512" height="512"></canvas>
+        </td>
+    </tr>
+El programa calcula el algoritmo de desplazamiento del punto medio en dos dimensiones.<br/>
+Se pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.<br/>
+A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representaci&oacute;n 3D de los datos, simulando un terreno.
+
+<br/>
+El &aacute;ngulo (entre 0 y 1.57) controla la orientaci&oacute;n del observador. Si es 0, el terreno se visualiza desde su base. Si es 1.57 se observa desde arriba. 
+<br/>
+El mapa de la derecha se encuentra escalado para una mejor visualizaci&oacute;n.
+<br/>
+La resoluci&oacute;n (entre 0 y 9) establece la cantidad de valores en X e Y que forman el mapa (de 1 a 512).
+    </table>
+    </div>
+</body> 
+ 
+</html> 
+
