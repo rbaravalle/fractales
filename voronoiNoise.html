@@ -240,7 +240,8 @@
         maximo = 0;
         minimo = 0;
         tipo = document.getElementById('tipo').value;
-        distancia = document.getElementById('distancia').value;;
+        distancia = document.getElementById('distancia').value;
+        cant = document.getElementById('cant').value;; ; // cantidad de slices de midpoint que se agregan
     }
 
     function init_gauss() {
@@ -486,7 +487,7 @@
 
     function VoronoiGet(x, y, z, v, dist) {
         var d, da, pa, sol;
-        if(v!='Difference21' && v!='Difference32' && v!='Crackle') {
+        if(v>6) {
             da = calculate(x,y,z, dist);
             d=da[v];
         }
@@ -520,7 +521,7 @@
             d=da[2]-da[1];
         }
         if(v == 6) {
-            d = Math.max(1.0,10*VoronoiGet(x,y,z,'Difference21', dist));
+            d = Math.max(1.0,10*VoronoiGet(x,y,z,4, dist));
         }
 
         return d*sqr2/sqr3; // d*sqrt(2)/sqrt(3)
@@ -614,56 +615,42 @@ function getPoint(x, y, z) {
     function calcular() {     
         init_variables();
 
-        var cant = 1;
-        var maxx = 0;
-
-        //Z = voronoi('Difference32','Length2');
-        var ZA = MidPointFM2D(addition,H,maxlevel);
+        var mmax = 0;
+        var ZA = [];
 
         for(var i = 0; i < maxd; i++) {
             for(var j = 0; j < maxd; j++) {
-               Z[i][j] = VoronoiGet(i*0.01,j*0.01, 0.5, tipo, distancia);
+               Z[i][j] = VoronoiGet(i*0.02,j*0.02, 0.5, tipo, distancia);
             }
         }
 
-        /*for(var i = 1; i < cant; i+=2) {
+        for(var i = 0; i < cant; i++) {
             ZA[i] = MidPointFM2D(addition,H,maxlevel);
-            ZA[i+1] = ZA[i];
         }
 
-        Z1 = ZA[0];
-
-        Z = ZA[0];*/
-
-
-
-        /*for(var i = 0; i < maxd; i++) {
+        for(var i = 0; i < maxd; i++) {
             for(var j = 0; j < maxd; j++) {
-                for(var k = 1; k  < cant; k++) {
-                    var val = ZA[k][i][j]+2;
+                for(var k = 0; k  < cant; k++) {
+                    var val = ZA[k][i][j];
                     if(val > 0)
-                        Z[i][j] = Math.max(val*Math.pow(0.9,k),Z[i][j]);
+                        Z[i][j] = 0.2*val*Math.pow(0.8,k)+0.8*Z[i][j];
                 }
                 if(Z[i][j] > mmax) mmax = Z[i][j];
-            }
-        }*/
 
-
-        var phi = 0;
-        
-        var peso = 0.5;
-
-        for(var i = 0; i < maxd; i++)
-            for(var j = 0; j < maxd; j++) {
+                var r = Z[i][j]; var g,b;
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 1) { r = 1; g = 1; b = 1;}
-                var r = 0.9*Z[i][j]+0.1*ZA[i][j]; var g,b;
                 g = r;
                 b = r;
-                var c = [r,g,b];//mapear(modo,r,g,b);
+                var c = mapear(modo,r,g,b);
                 vertices.push((i/maxd-0.5)*2,(j/maxd-0.5)*2);
                 colores.push(c[0],c[1],c[2],1.0);
             }
+        }
+
+        var phi = 0;        
+        var peso = 0.5;
+
 
         // se obtiene el orden de los vertices
         // para poder visualizar un triangle strip
@@ -749,7 +736,7 @@ function getPoint(x, y, z) {
         }
         if(modo == 3) { // corte de pan
             var h = r*1.2;
-            r = h*156/255; g = h*142/255; b = h*122/255;
+            r = h*155/255; g = h*142/255; b = h*122/255;
         }
         return [r,g,b];
     }
@@ -854,6 +841,7 @@ calcular();
             Angulo: <input type="text" value="0" id="angulo" size=5 />
             Resoluci&oacute;n <input type="text" value="8" id="maxlevel" size=5 />
             Nivel del mar <input type="text" value="0.5" id="nivel" size=5 />
+            Cant <input type="text" value="2" id="cant" size=5 />
             Tipo:
            <select id="modo">
                 <option value=0 >Nube</option>
