@@ -245,13 +245,17 @@
 
     function init_voronoi() {
         Coords = [];
-        for(var i = 0; i < tam; i++) {
+        for(var i = 0; i < tam/2-4; i+=2) {
             Coords[i] = Math.random();
-            Coords[i+1] = Math.random()*0.04;
+            Coords[i+1] = Math.random()*0.1;
         }
-        for(var i = tam; i < 2*tam; i++) {
+        Coords[tam/2-4] = Math.random();
+        Coords[tam/2-3] = Math.random();
+        Coords[tam/2-2] = Math.random();
+        Coords[tam/2-1] = Math.random();
+        for(var i = tam/2; i < tam; i+=2) {
             Coords[i] = Math.random();
-            Coords[i+1] = 1-Math.random()*0.04;
+            Coords[i+1] = 1-Math.random()*0.1;
         }
     }
 
