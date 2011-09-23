@@ -49,7 +49,7 @@
     var agua,nivel;
     var sqr2 = Math.sqrt(2);
     var sqr3 = Math.sqrt(3);
-    var tipo,distancia,tam;
+    var tipo,distancia,tam, esc;
     var Index;
     var Coords;
 
@@ -240,22 +240,30 @@
         distancia = document.getElementById('distancia').value;
         tam = document.getElementById('tam').value;
         cant = document.getElementById('cant').value; // cantidad de slices de midpoint que se agregan
-        init_voronoi();
+        escala = document.getElementById('escala').value;
+        init_voronoi(tam);
     }
 
-    function init_voronoi() {
+    function init_voronoi(t) {
         Coords = [];
-        for(var i = 0; i < tam/2-4; i+=2) {
-            Coords[i] = Math.random();
-            Coords[i+1] = Math.random()*0.1;
-        }
-        Coords[tam/2-4] = Math.random();
-        Coords[tam/2-3] = Math.random();
-        Coords[tam/2-2] = Math.random();
-        Coords[tam/2-1] = Math.random();
-        for(var i = tam/2; i < tam; i+=2) {
-            Coords[i] = Math.random();
-            Coords[i+1] = 1-Math.random()*0.1;
+        for(var i = 0; i < t; i+=2) {
+            var v = Math.random();
+            if(v > 2) {
+                rad = 0.9-Math.random()*0.1;
+                var x = 2*(Math.random()-0.5);
+                var y = Math.sqrt(rad-x*x);
+                if(Math.random() < 0.5) y = -y;
+                var c = Coords[i];
+
+                Coords[i] = x/2+0.5;
+                Coords[i+1] = y/2+0.5;
+            }
+            else {
+                var r = Math.random();
+                Coords[i] = r*r;
+                r = Math.random();
+                Coords[i+1] = r*r;
+            }
         }
     }
 
@@ -379,7 +387,6 @@
     function aleat(x) {
         return Math.floor(Math.random()*x);
     }
-
 
     function tstrip() {
         var ind = [];
@@ -512,26 +519,32 @@
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function calcular() {     
         init_variables();
-        var mmax = 0;
+        var mmax = 1;
         var ZA = [];
-        Z = voronoi(tipo,distancia);
+        ZA[0] = voronoi(tipo,distancia);
+        for(var i = 0; i < maxd; i++)
+            for(var j = 0; j < maxd; j++)
+                if(ZA[0][i][j] > mmax) mmax = ZA[0][i][j];
         var tipotemp = tipo;
-        for(var i = 0; i < cant; i++) {
-            init_voronoi();
-            if(i%2 == 0) tipo = 0;
+        var l = [64,128,512,8192]
+        for(var i = 1; i < cant; i++) {
+            init_voronoi(l[i%l.length]);
             ZA[i] = voronoi(tipo,distancia);
         }
-        //ZA[cant] = MidPointFM2D(addition,H,maxlevel);
-        if(cant > 0)
+        if(cant > 0) {
+            ZA[cant] = MidPointFM2D(addition,H,maxlevel);
             for(var i = 0; i < maxd; i++) {
                 for(var j = 0; j < maxd; j++) {
-                    for(var k = 0; k  < ZA.length; k++) {
+                    Z[i][j] = ZA[0][i][j]/2;
+                    for(var k = 1; k  < ZA.length-1; k++) {
                         var val = ZA[k][i][j];
-                        Z[i][j] += val; 
-                        if(Z[i][j] > mmax) mmax = Z[i][j];
+                        Z[i][j] += Math.abs(Math.pow(2,-k)*val); 
                     }
+                    var val = ZA[cant][i][j];
+                    Z[i][j] += 0.04*val;
                 }
             }
+        }
 
         for(var i = 0; i < maxd; i++) {
             for(var j = 0; j < maxd; j++) {
@@ -545,7 +558,7 @@
                 k = maxd/2+Math.floor(maxd*(sinLength * posx+ cosLength * posy));
                 if(!Z[h]) { h = i;}
                 if(!Z[h][k]) { k = j;}*/
-                var r = Z[i][j]/mmax; var g,b;
+                var r = escala*Z[i][j]/mmax; var g,b;
                 if(r < 0) { r = 0; g = 0; b = 0;}
                 if(r > 1) { r = 1; g = 1; b = 1;}
                 g = r;
@@ -745,12 +758,13 @@
     <tr>
         <td>
             2-H (dimensi&oacute;n fractal): <input type="text" value="0.9" id="H" size=5 />
-
             Angulo: <input type="text" value="1.57" id="angulo" size=5 />
             Resoluci&oacute;n <input type="text" value="7" id="maxlevel" size=5 />
             Nivel del mar <input type="text" value="0.5" id="nivel" size=5 />
             Cant <input type="text" value="1" id="cant" size=5 />
-            Tam <input type="text" value="4" id="tam" size=5 />
+            Tam <input type="text" value="512" id="tam" size=5 /> <br />
+            Escala <input type="text" id="escala" value="4" size=5  /> <br />
+            
             Tipo:
            <select id="modo">
                 <option value=0 >Nube</option>
@@ -792,8 +806,6 @@
             <canvas id="canvas2" style="background-color:black;" width="512" height="512"></canvas>
         </td>
     </tr>
-El programa calcula Voronoi Noise de acuerdo a la pagina:
-<a href="http://mines.lumpylumpy.com/Electronics/Computers/Software/Cpp/Graphics/Bitmap/Textures/Noise/Voronoi.php" target="_blank" >Lumpy Lumpy</a>.</br>
 Se pueden elegir distintos coloreos para representar, ademas del mapa de alturas, nubes y terrenos.<br/>
 A la izquierda puede verse el mapa de alturas en dos dimensiones y a la derecha una representaci&oacute;n 3D de los datos, simulando un terreno.
 
