@@ -7,9 +7,9 @@
 <script type="text/javascript">
 
     var MIN = -1;
-    var MAX = 1;
+    var MAX = 3;
     var MINY = -1;
-    var MAXY = 1;
+    var MAXY = 3;
 
     var STEP = (MAX-MIN)/1000;
 
@@ -19,13 +19,46 @@
     var escala = 2;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
     var cursorX, cursorY, cursorA = 0;
+    var cantIt;
     var pi3 = Math.PI/3;
+    var deltaAng;
+    var estados = []; // pila de estados de la tortuga
+    var c = 1;
+    var p = 0.3;
+    var q = c-p;
+    var h = Math.sqrt((p*q));
+    var R = 1.456;
+
+    var figuras = [{'axioma':'F','L':'---','F':'F+F--F+F','f':'f','G':'---','R':'---','angulo':1.047197555,'angInit':'0','n':4,'parametrico':0},
+{'axioma':'L','L':'F[+L]F[-L]+L','F':'FF','G':'---','R':'---','angulo':0.5,'angInit':'1.57','n':4,'parametrico':0},
+                   {'axioma':'L','L':'F[+L][-L]FL','F':'FF','f':'f','G':'---','R':'---','angulo':0.5,'angInit':'1.57','n':4,'parametrico':0},
+                   {'axioma':'L','L':'F-[[L]+L]+F[+FL]-L','f':'f',
+                    'G':'---','R':'---','F':'FF','angulo':0.5,'angInit':'1.57','n':4,'parametrico':0},
+                   {'axioma':'F-F-F-F','L':'---','F':'FF-F--F-F','f':'f',
+                    'G':'---','R':'---','angulo':'1.57079633','angInit':'1.57','n':4,'parametrico':0},
+                   {'axioma':'F-F-F-F','L':'---','F':'F-FF--F-F','f':'f','G':'---'
+                    ,'R':'---','angulo':'1.57079633','angInit':'1.57','n':4,'parametrico':0},
+                   {'axioma':'G','L':'---','R':'---','F':'G+F+G','G':'F-G-F','f':'f','angulo':'1.04719755','angInit':'0','n':6,'parametrico':0},
+                   {'axioma':'F+F+F+F','L':'---','R':'---','F':'F+f-FF+F+FF+Ff+FF-f+FF-F-FF-Ff-FFF','f':'ffffff','G':'---','angulo':'1.57','angInit':'0','n':2,'parametrico':0},
+                   {'axioma':'F','L':'---','R':'---','F':'F+G+','G':'-F-G','f':'f','angulo':'1.57','angInit':'0','n':10,'parametrico':0},
+{'axioma':'F','L':'---','R':'---','F':'---','f':'f','G':'---','angulo':'1.50','angInit':'0','n':4,'parametrico':1,'regla':['F',p,'+','F',h,'-','-','F',h,'+','F',q]},
+{'axioma':'F','L':'---','R':'---','F':'---','f':'f','G':'---','angulo':'1.50','angInit':'0','n':4,'parametrico':1,'regla':['F',p,2,'+','F',h,1,'-','-','F',h,1,'+','F',q,0]},
+{'axioma':'L','L':['F',1,'[','+','L',1/R,']','[','-','L',1/R,']'],'R':'---','F':'---','f':'f','G':'---','angulo':'1.52','angInit':'1.57','n':8,'parametrico':1}];
+
+    var figura = 0;
+    var nomfigura = ["Copo de Nieve","Arbol 1", "Arbol 2","Arbol 3","Koch Curve","Koch Curve 2","Sierpinski Gasket","Islas y Lagos","Dragon Curve","Fila de Arboles","Fila de Arboles Uniforme","T-Ramificada"];
+    var reset = false;
+    var parametrico = 0;
 
     function reset() {
         MIN = -1;
         MAX = 1;
         MINY = -1;
         MAXY = 1;
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+    function dib() {
         dibujar(ctx,MIN,MAX,MINY,MAXY);
     }
 
@@ -158,17 +191,29 @@
     // forma de generar
     function reglas(c) {
         if(c == 'F') return document.getElementById('reglas').value;
-        if(c == 'f') return 'f';
+        if(c == 'G') return document.getElementById('reglas2').value;
+        if(c == 'L') return document.getElementById('reglas3').value;
+        if(c == 'R') return document.getElementById('reglas4').value;
+        if(c == 'f') return document.getElementById('reglasf').value;
         if(c == '+') return '+';
         if(c == '-') return '-';
+        if(c == '[') return '[';
+        if(c == ']') return ']';
     }
 
     function cantF(s) {
-        /*s = s.map(s.charAt(i) == 'f' || s.charAt(i) == 'F');
-        alert(s);*/
         var c = 0;
         for(var i = 0; i < s.length; i++) {
             if(s.charAt(i) == 'f' || s.charAt(i) == 'F') c++;
+        }
+
+        return c;
+    }
+
+    function cantFp(s) {
+        var c = 0;
+        for(var i = 0; i < s.length; i++) {
+            if(s[i] == 'f' || s[i] == 'F') c++;
         }
 
         return c;
@@ -196,9 +241,128 @@
       return [tempX,tempY];
     }
 
+    function cambiaFigura() {
+        document.getElementById('reglas').value = figuras[figura].F;
+        document.getElementById('reglas2').value = figuras[figura].G;
+        document.getElementById('reglas3').value = figuras[figura].L;
+        document.getElementById('reglas4').value = figuras[figura].R;
+        document.getElementById('axioma').value = figuras[figura].axioma;
+        document.getElementById('angulo').value = figuras[figura].angulo;
+        document.getElementById('angInit').value = figuras[figura].angInit;
+        document.getElementById('cantIt').value = figuras[figura].n;
+        document.getElementById('reglasf').value = figuras[figura].f;
+        parametrico = figuras[figura].parametrico;
+        dib();
+    }
+
+    // arreglo con un paso de la generacion
+    function reglasP(c,x) {
+        if(c == 'F') return ['F',x*p,'+','F',x*h,'-','-','F',x*h,'+','F',x*q];
+        else return [c];
+    }
+
+    // arreglo con un paso de la generacion
+    function reglasP3(c,s) {
+        if(c == 'L') return ['F',s,'[','+','L',s/R,']','[','-','L',s/R,']'];
+        else return [c];
+    }
+
+    function derivarP3(s) {
+        var res = [];
+        for(var i = 0; i < s.length; i++) {
+            var xx;
+            if(i == s.length-1) {
+                xx = 0;
+            }
+            else xx = s[i+1];
+            var d = reglasP3(s[i],xx);
+            for(var j = 0; j < d.length; j++) {
+                res.push(d[j]);
+            }
+            //if(s[i] == 'F') i++; // se reemplaza tambien el numero
+        }
+        return res;
+    }
+
+    // derivar L-System parametrico
+    function derivarP(s) {
+        var res = [];
+        for(var i = 0; i < s.length; i++) {
+            var xx;
+            if(i == s.length-1) {
+                xx = 0;
+            }
+            else xx = s[i+1];
+            var d = reglasP(s[i],xx);
+            for(var j = 0; j < d.length; j++) {
+                res.push(d[j]);
+            }
+            if(s[i] == 'F') i++; // se reemplaza tambien el numero
+        }
+        return res;
+    }
+
+
+    // arreglo con un paso de la generacion
+    function reglasP2(c,x,y) {
+        if(c == 'F') {
+            if(y == 0) return ['F',x*p,2,'+','F',x*h,1,'-','-','F',x*h,1,'+','F',x*q,0];
+            else return ['F',x,y-1];
+        }
+        else return [c];
+    }
+
+    // derivar L-System parametrico
+    function derivarP2(s) {
+        var res = [];
+        for(var i = 0; i < s.length; i++) {
+            var xx,yy;
+            if(i == s.length-1 || i == s.length-2) {
+                xx = 0;
+                yy = 0;
+            }
+            else { xx = s[i+1];
+                   yy = s[i+2];
+            }
+            var d = reglasP2(s[i],xx,yy);
+            for(var j = 0; j < d.length; j++) {
+                res.push(d[j]);
+            }
+            if(s[i] == 'F') i+=2; // se reemplazan tambien los numeros
+        }
+        return res;
+    }
+
+    function TRamificada(n) {
+        var regla = figuras[figura].L;
+        for(var i = 0; i < n; i++) {
+            regla = derivarP3(regla);
+        }
+        return regla;
+    }
+
+    function rowTrees2(n) {
+        var regla = figuras[figura].regla; // se que se debe arrancar con la primer regla dado que t=0
+        for(var i = 0; i < n; i++) {
+            regla = derivarP2(regla);
+        }
+        return regla;
+    }
+
+    function rowTrees(n) {
+        var x = 1;
+        var regla = figuras[figura].regla;
+        for(var i = 0; i < n; i++) {
+            regla = derivarP(regla);
+        }
+        return regla;
+    }
+
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
     function dibujar(ctx,x0,x1,y0,y1) {
-        cursorA = 0;
+        deltaAng = parseFloat(document.getElementById('angulo').value);
+        cantIt = parseFloat(document.getElementById('cantIt').value);
+
         var w = document.getElementById('canvas').width;
         var h = document.getElementById('canvas').height;
         ctx.clearRect ( 0 , 0 , w , h );
@@ -209,59 +373,129 @@
         var propX = w/diffX;
         var propY = w/diffY;
     
+        if(parametrico == 1) {
+            var s = document.getElementById('axioma').value;
+            var d = derivarP(s);
 
-        var s = document.getElementById('axiom').value;
-        var d = derivar(s);
+            cursorX = 0;
+            cursorY = 0;
+            cursorA = parseFloat(document.getElementById('angInit').value);
 
-        while(cantF(d) < w/diffX)
-            d = derivar(d);
+            if(figura == figuras.length-1) d = TRamificada(cantIt);
+            else {
+            if(figura == figuras.length-2) d = rowTrees2(cantIt);
+            else d = rowTrees(cantIt); }
 
-        cursorX = 0;
-        cursorY = 0;
+            for(var i = 0; i < d.length; i++) {
+                var ch = d[i];
 
-        for(var i = 0; i < d.length; i++) {
-            var ch = d.charAt(i);
-            if(ch == 'F' || ch == 'f') {
-                ctx.beginPath();
-
-                var initX = Math.ceil((cursorX-x0)*propX);
-                var initY = h-Math.ceil((cursorY-y0)*propY);
-	            ctx.moveTo(initX, initY);
-
-                var xn=cursorX+(10/cantF(d)),yn=cursorY;
-                if(cursorA) {
-                    var arr = rotar(xn,yn,cursorX,cursorY, cursorA);
-                    xn = arr[0];
-                    yn = arr[1];
+                if(ch == '[') {
+                    estados.push({'pos':[cursorX,cursorY], 'alfa':cursorA});
                 }
-                
-                if(ch == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
-                else ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
+                if(ch == ']') {
+                    var pe = estados.pop();
+                    cursorX = pe.pos[0];
+                    cursorY = pe.pos[1];
+                    cursorA = pe.alfa;
+                }
 
-                var actualX = Math.ceil((xn-x0)*propX);
-                var actualY = h-Math.ceil((yn-y0)*propY);
+                if(ch == 'F' || ch == 'f') {
+                    ctx.beginPath();
 
-                ctx.lineTo( actualX, actualY );
+                    var initX = Math.ceil((cursorX-x0)*propX);
+                    var initY = h-Math.ceil((cursorY-y0)*propY);
+                    ctx.moveTo(initX, initY);
 
-                ctx.stroke();
-                ctx.closePath();
+                    var yn=cursorY;
+                    ///cantFp(d)
+                    var xn = cursorX+(40*d[++i]);
+                    if(cursorA) {
+                        var arr = rotar(xn,yn,cursorX,cursorY, cursorA);
+                        xn = arr[0];
+                        yn = arr[1];
+                    }
+                    
+                    if(ch == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
+                    else ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
 
-                cursorX = xn;
-                cursorY = yn;
+                    var actualX = Math.ceil((xn-x0)*propX);
+                    var actualY = h-Math.ceil((yn-y0)*propY);
+
+                    ctx.lineTo( actualX, actualY );
+
+                    ctx.stroke();
+                    ctx.closePath();
+
+                    cursorX = xn;
+                    cursorY = yn;
+                }
+
+                if(ch == '+') cursorA += deltaAng;
+                if(ch == '-') cursorA -= deltaAng;
             }
+    }
+    else {
+            var s = document.getElementById('axioma').value;
+            var d = derivar(s);
+            for(var i = 0; i < cantIt-1; i++)
+                d = derivar(d);
 
-            if(ch == '+') cursorA += pi3;
-            if(ch == '-') cursorA -= pi3;
-        }
+            cursorX = 0;
+            cursorY = 0;
+            cursorA = parseFloat(document.getElementById('angInit').value);
 
+            for(var i = 0; i < d.length; i++) {
+                var ch;
+                ch = d.charAt(i);
 
+                if(ch == '[') {
+                    estados.push({'pos':[cursorX,cursorY], 'alfa':cursorA});
+                }
+                if(ch == ']') {
+                    var pe = estados.pop();
+                    cursorX = pe.pos[0];
+                    cursorY = pe.pos[1];
+                    cursorA = pe.alfa;
+                }
 
+                if(ch == 'F' || ch == 'G' || ch == 'f') {
+                    ctx.beginPath();
 
-        /*document.getElementById('minX').innerHTML = MIN;
-        document.getElementById('maxX').innerHTML = MAX;
-        document.getElementById('maxY').innerHTML = MAXY;
-        document.getElementById('minY').innerHTML = MINY;*/
+                    var initX = Math.ceil((cursorX-x0)*propX);
+                    var initY = h-Math.ceil((cursorY-y0)*propY);
+                    ctx.moveTo(initX, initY);
+                    ///cantF(d)
+                    var xn=cursorX+(2),yn=cursorY;
+                    if(cursorA) {
+                        var arr = rotar(xn,yn,cursorX,cursorY, cursorA);
+                        xn = arr[0];
+                        yn = arr[1];
+                    }
+                    
+                    if(ch == 'f') ctx.strokeStyle = "rgba(0, 0, 0, 1.0)";
+                    else ctx.strokeStyle = "rgba(255, 255, 255, 1.0)";
 
+                    var actualX = Math.ceil((xn-x0)*propX);
+                    var actualY = h-Math.ceil((yn-y0)*propY);
+
+                    ctx.lineTo( actualX, actualY );
+
+                    ctx.stroke();
+                    ctx.closePath();
+
+                    cursorX = xn;
+                    cursorY = yn;
+                }
+
+                if(ch == '+') cursorA += deltaAng;
+                if(ch == '-') cursorA -= deltaAng;
+            }
+    }
+
+    }
+
+    function dib() {
+        dibujar(ctx,MIN,MAX,MINY,MAXY);        
     }
 
     function start() {
@@ -282,24 +516,31 @@
 
 <body onload="start()" style="background-color:rgb(150,150,150);">
 
-    <div style="text-align:center; font-size:30px">Tortuga</div>
+    <div style="text-align:center; font-size:30px">L-Systems</div>
 
-    <input type="button" onclick="reset()" value="Reset" />
+    <!-- <input type="button" onclick="reset()" value="Reset" />-->
     
     <br />
+    <div style="text-align:center; font-size:20px" id="explicacion"> El pr&aacute;ctico propone la implementaci&oacute;n de L-Systems (tambi&eacute;n OL-Systems y L-Systems Param&eacute;tricos). Se encuentran precargados L-Systems conocidos. Tambi&eacute;n es posible introducir las reglas en los recuadros.Es posible hacer zoom con la rueda del mouse y navegar los L-Systems con el bot&oacute;n izquierdo, como si fuera un mapa.</div>
 
     <div id="canvas-container" style="float:left;">
         <canvas id="canvas" style="background-color:black;" width="800" height="800"></canvas>
     </div>
 
-    Axioma<input type="text" id="axiom" style="font-size:30px;" value="F--F--F" />
-    <br/>
-    Regla<input type="text" id="reglas" style="font-size:30px;" value="F+F--F+F" />
-    <!--<div id="maxY" style="font-size:30px;"></div>
-    <div id="minY" style="font-size:30px; position:absolute; left:810px; top:820px;"></div>
+    <input type="text" id="angulo" style="font-size:30px;" value="1.04" />&Aacute;ngulo<br/>
+    <input type="text" id="cantIt" style="font-size:30px;" value="4" />Cantidad de Iteraciones<br/>
+    <input type="text" id="angInit" style="font-size:30px;" value="0" />Angulo inicial<br/>
+    <input type="text" id="axioma" style="font-size:30px;" value="F" />Axioma<br/>
+    <input type="text" id="reglas" style="font-size:30px;" value="F+F--F+F" />F Avanzar Dibujando (1)<br/>
+    <input type="text" id="reglasf" style="font-size:30px;" value="f" />f Avanzar sin dibujar<br/>
+    <input type="text" id="reglas2" style="font-size:30px;" value="---" />G Avanzar Dibujando (2)<br/>
+    <input type="text" id="reglas3" style="font-size:30px;" value="---" />L Regla 1<br/>
+    <input type="text" id="reglas4" style="font-size:30px;" value="---" />R Regla 2<br/>
 
-    <div id="minX" style="font-size:30px; position:absolute; left:10px; top:870px;"></div>
-    <div id="maxX" style="font-size:30px; position:absolute; left:790px; top:870px;"></div>-->
+    <input style="text-align:center; font-size:30px" id="figuraMenos" type="button" value="<" onclick="reset = false; figura--; if(figura<0) figura = nomfigura.length-1; figura%=nomfigura.length; document.getElementById('nomfigura').innerHTML=nomfigura[figura]; cambiaFigura();"/>
+        <input style="text-align:center; font-size:30px" id="figuraMas" type="button" value=">" onclick="reset = false; figura++; figura%=nomfigura.length; document.getElementById('nomfigura').innerHTML=nomfigura[figura]; cambiaFigura();"/>Figura: <span style="text-align:center; font-size:30px" id="nomfigura" >Copo de Nieve</span>
+        <br/>
+<input style="text-align:center; font-size:30px" id="calcular" type="button" value="Calcular" onclick="dib()"/>
 
 
 </body>
