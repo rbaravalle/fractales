@@ -1,0 +1,339 @@
+<html>
+
+<head>
+<title>Practica 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="webgl-utils.js"></script>
+
+<script type="text/javascript">
+
+    var MIN = -100;
+    var MAX = 300;
+    var MINY = -100;
+    var MAXY = 300;
+
+    var STEP = (MAX-MIN)/1000;
+
+    var click;
+    var xPos, yPos;
+    var ctx;
+    var escala = 2;
+    var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
+    var cursorX, cursorY, cursorA = 0;
+    var cantIt;
+    var pi3 = Math.PI/3;
+    var deltaAng;
+    var estados = []; // pila de estados de la tortuga
+    var c = 1;
+    var p = 0.3;
+    var q = c-p;
+    var h = Math.sqrt((p*q));
+
+    var maxcoord = 512;
+    var maxcoord2 = maxcoord*maxcoord;
+    var cantGen = 1000; //4%
+    var cantIt = 1000;
+
+    var autcel0 = [];
+    var autcel = [];
+
+    var reset = false;
+    var animar = true;
+    var stop = 0;
+    var t = 0;
+
+    function aleat(x) {
+        return Math.floor(Math.random()*x);
+    }
+
+    function dib() {
+        dibujar();
+    }
+
+    /*function handle(delta) {
+
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+
+            if(delta > 0) {
+                var ventana = diff/escala;
+                var ventanaY = diffY/escala;
+
+                MIN = xValue - (xValue-MIN)/escala;
+                MAX = MIN + ventana;
+
+                MINY = yValue - (yValue-MINY)/escala;
+                MAXY = MINY + ventanaY;
+
+            }
+            else {
+                var ventana = diff;
+                var ventanaY = diffY;
+
+                MIN = xValue - escala*(xValue-MIN);
+                MAX = MIN + escala*ventana;
+                MINY = yValue - escala*(yValue-MINY);
+                MAXY = MINY + escala*ventanaY;
+            }
+            dibujar();
+    }*/
+
+     
+    /*function wheel(event){
+            var delta = 0;
+            if (!event) event = window.event;
+            if (event.wheelDelta) {
+                    delta = event.wheelDelta/120;
+                    if (window.opera) delta = -delta;
+            } else if (event.detail) {
+                    delta = -event.detail/3;
+            }f
+            if (delta)
+                    handle(delta);
+    }*/
+
+    function findPos(obj) {
+        var curleft = curtop = 0;
+        if (obj.offsetParent) {
+            do {
+                curleft += obj.offsetLeft;
+                curtop += obj.offsetTop;
+            } while (obj = obj.offsetParent);
+            return { x: curleft, y: curtop };
+        }
+    }
+
+    function onMouseMove(e)
+    {
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        if(click) {
+            var diff = MAX-MIN;
+            var diffY = MAXY-MINY;
+            var xValue = MIN + diff*xPos/document.getElementById('canvas').width;
+            var yValue = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+            
+            MIN  = MIN  - (xValue-x);
+            MAX  = MAX  - (xValue-x);
+            MINY = MINY - (yValue-y);
+            MAXY = MAXY - (yValue-y);
+
+            dibujar();
+        }
+    }
+
+    function onButtonDown(e)
+    {
+        click = true;
+        var pos = findPos(this);
+        xPos = e.pageX - pos.x;
+        yPos = e.pageY - pos.y;
+
+        document.getElementById('canvas').style.cursor='pointer';
+
+        var diff = MAX-MIN;
+        var diffY = MAXY-MINY;
+        x = MIN + diff*xPos/document.getElementById('canvas').width;
+        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
+        
+    }
+
+    function onButtonUp(e)
+    {
+        click = false;
+        document.getElementById('canvas').style.cursor='default';
+    }    
+        
+    function init(canvas) {
+        try {
+            /*if (canvas.addEventListener)
+                    canvas.addEventListener('DOMMouseScroll', wheel, false);*/
+            //anvas.onmousewheel = wheel;
+            canvas.onmousemove = onMouseMove;
+
+            canvas.onmousedown=onButtonDown;
+            canvas.onmouseup=onButtonUp;
+
+        } catch (e) {
+            alert("Problema con canvas!");
+        }
+    }
+
+    function f(a,x) {
+        return a*x*(1-x);
+    }
+
+    // derivacion
+    function derivar(s) {
+        var d = '';
+        for(var i = 0; i < s.length; i++)
+            d += reglas(s.charAt(i));
+
+        return d;
+    }
+
+    // forma de generar
+    /*function reglas(c) {
+        if(c == 'F') return document.getElementById('reglas').value;
+        if(c == 'G') return document.getElementById('reglas2').value;
+        if(c == 'L') return document.getElementById('reglas3').value;
+        if(c == 'R') return document.getElementById('reglas4').value;
+        if(c == 'f') return document.getElementById('reglasf').value;
+        if(c == '+') return '+';
+        if(c == '-') return '-';
+        if(c == '[') return '[';
+        if(c == ']') return ']';
+    }*/
+
+    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    function dibujar() {
+        //cantIt = parseFloat(document.getElementById('cantIt').value);
+
+        var w = document.getElementById('canvas').width;
+        var h = document.getElementById('canvas').height;
+        ctx.clearRect ( 0 , 0 , w , h );
+        ctx.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
+
+        /*var diffX = x1-x0;
+        var diffY = y1-y0;
+
+        var propX = w/diffX;
+        var propY = w/diffY;*/
+
+        iterar();
+
+        for(var i = 0; i < maxcoord; i++) {
+            for(var j = 0; j < maxcoord; j++) {
+                if( autcel[i+j*maxcoord] == 1 ) ctx.fillRect(i,h-j,1,1);
+            }
+        }
+
+        for(var i = 0; i < maxcoord2; i++) {
+            autcel0[i] = autcel[i];
+        }
+
+        
+
+    }
+
+    function iterar() {
+        // chequeamos cada celda con sus vecinos
+        for(var i = 0; i < maxcoord; i++) {
+            for(var j = 0; j < maxcoord; j++) {
+                var suma = 0;
+                var contorno = [
+                    {'x':i-1,"y":j+1},
+                    {'x':i,"y":j+1},
+                    {'x':i+1,"y":j+1},
+                    {'x':i-1,"y":j},
+                    {'x':i+1,"y":j},
+                    {'x':i-1,"y":j-1},
+                    {'x':i,"y":j-1},
+                    {'x':i+1,"y":j-1},
+                ];
+                for(var k = 0; k < contorno.length; k++) {
+                    suma += autcel0[ contorno[k].x+contorno[k].y*maxcoord ];
+                }
+
+                if(suma == 2 || suma == 3) autcel[i+j*maxcoord] = 1;
+                else autcel[i+j*maxcoord] = 0; // muere
+            }
+        }
+    }
+
+    function dib() {
+        dibujar();        
+    }
+
+    function start() {
+        var canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        init(canvas);
+
+        for(var i = 0; i < maxcoord2; i++) { // todos comienzan en estado "muerto"
+            autcel0[i] = 0;
+        }
+
+        for(var i = 0; i < cantGen; i++) // algunos comenzaran en el estado "vivo"
+            autcel0[aleat(maxcoord2)] = 1;
+
+        tick();
+    }
+
+    function tick() {
+        if(stop == 1) { // recalcular textura
+            stop = 0;
+/*            for(var i = 0; i < maxcoord2; i++) delete occupied[i];
+            for(var i = 0; i < particles.length; i++) delete particles[i];
+            init_variables();*/
+        }
+
+        if(animar) { 
+            t++;
+            dibujar();
+            //mover();
+            /*transferencia();
+            t++;
+            if(t%REFRESCO == 0 || t== TIEMPO-1) {
+                dibujarParticulas();
+            }
+            var d2 = new Date();
+            var t2 = d2.getTime();
+            $('iteracion').innerHTML = t;
+            $('contorno').innerHTML = largoCont;
+            $('cantPart').innerHTML = particles.length;
+            $('tiempoIt').innerHTML = Math.abs(t2-t1)/1000 ;
+            $('promedioIt').innerHTML = (1000*(t)/Math.abs(t2-t1)).toFixed(2) ;
+            delete d2;*/
+        }
+        document.getElementById('itActual').innerHTML = t;
+        if(t < cantIt-1) requestAnimFrame(tick);
+    }
+
+
+    function resett() {
+        MIN = -100;
+        MAX = 300;
+        MINY = -100;
+        MAXY = 300;
+        for(var i = 0; i < maxcoord2; i++) { // todos comienzan en estado "muerto"
+            autcel0[i] = 0;
+        }
+
+        for(var i = 0; i < cantGen; i++) // algunos comenzaran en el estado "vivo"
+            autcel0[aleat(maxcoord2)] = 1;
+        dibujar(ctx,MIN,MAX,MINY,MAXY);
+    }
+
+
+</script>
+
+
+</head>
+
+
+<body onload="start()" style="background-color:rgb(150,150,150);">
+
+    <div style="text-align:center; font-size:30px">Juego de la Vida</div>
+
+    <div style="text-align:center; font-size:20px" id="explicacion"> </div>
+    Cantidad de Iteraciones<div style="text-align:center; font-size:20px" id="itActual"> 0</div>
+
+    <input type="button" onclick="resett()" value="Reset" />
+<br/>
+    <div id="canvas-container" style="float:left;">
+        <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
+    </div>
+
+<input style="text-align:center; font-size:30px" id="calcular" type="button" value="Calcular" onclick="dib()"/>
+
+
+</body>
+
+</html>
+
