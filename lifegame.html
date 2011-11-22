@@ -37,20 +37,23 @@
     var autcel = [];
 
     var reset = false;
-    var animar = true;
+    var animar = false;
+    var unaIt = false;
     var stop = 0;
     var t = 0;
 
     var nacer = [];
     var morir = [];
     var checksnacer, checksmorir;
+    var w;
+    var h;
 
     function aleat(x) {
         return Math.floor(Math.random()*x);
     }
 
     function dib() {
-        dibujar();
+        dibujar(animar);
     }
 
     function findPos(obj) {
@@ -81,7 +84,7 @@
             MINY = MINY - (yValue-y);
             MAXY = MAXY - (yValue-y);
 
-            dibujar();
+            dibuja();
         }
     }
 
@@ -98,7 +101,11 @@
         var diffY = MAXY-MINY;
         x = MIN + diff*xPos/document.getElementById('canvas').width;
         y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
-        
+
+        if(animar) {
+            var ind = Math.floor((xPos/4))+Math.floor((maxcoord-yPos/4))*(maxcoord);
+            autcel0[ind] = 1;
+        }
     }
 
     function onButtonUp(e)
@@ -109,7 +116,7 @@
         
     function init(canvas) {
         try {
-            canvas.onmousemove = onMouseMove;
+            //canvas.onmousemove = onMouseMove;
 
             canvas.onmousedown=onButtonDown;
             canvas.onmouseup=onButtonUp;
@@ -119,17 +126,19 @@
         }
     }
 
-    function f(a,x) {
-        return a*x*(1-x);
-    }
+    function dibuja() {
+        ctx.clearRect ( 0 , 0 , w , h );
+        ctx.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
 
-    // derivacion
-    function derivar(s) {
-        var d = '';
-        for(var i = 0; i < s.length; i++)
-            d += reglas(s.charAt(i));
+        
+        for(var i = 0; i < maxcoord; i++) {
+            for(var j = 0; j < maxcoord; j++) {
+                if( autcel[i+j*maxcoord] == 1 ) {
+                    ctx.fillRect(i*4,h-j*4,4,4);
+                }
+            }
+        }
 
-        return d;
     }
 
     // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
@@ -137,18 +146,10 @@
 
         checks();
         cantGen = document.getElementById('cantGen').value;
-        var w = document.getElementById('canvas').width;
-        var h = document.getElementById('canvas').height;
-        ctx.clearRect ( 0 , 0 , w , h );
-        ctx.fillStyle = "rgba("+255+", "+255+", "+255+", 1.0)";
 
         iterar();
 
-        for(var i = 0; i < maxcoord; i++) {
-            for(var j = 0; j < maxcoord; j++) {
-                if( autcel[i+j*maxcoord] == 1 ) ctx.fillRect(i*4,h-j*4,4,4);
-            }
-        }
+        dibuja();
 
         for(var i = 0; i < maxcoord2; i++) {
             autcel0[i] = autcel[i];
@@ -199,6 +200,8 @@
     function start() {
         var canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
+        w = document.getElementById('canvas').width;
+        h = document.getElementById('canvas').height;
         init(canvas);
 
         for(var i = 0; i < maxcoord2; i++) { // todos comienzan en estado "muerto"
@@ -208,21 +211,16 @@
         for(var i = 0; i < cantGen; i++) // algunos comenzaran en el estado "vivo"
             autcel0[aleat(maxcoord2)] = 1;
 
-        tick();
+        t=0;
+        resett();
     }
 
     function tick() {
-        if(stop == 1) { // recalcular textura
-            stop = 0;
-            animar = false;
-/*            for(var i = 0; i < maxcoord2; i++) delete occupied[i];
-            for(var i = 0; i < particles.length; i++) delete particles[i];
-            init_variables();*/
-        }
 
-        if(animar) { 
+        if(animar || unaIt) { 
             t++;
             dibujar();
+            unaIt = false;
             //mover();
             /*transferencia();
             t++;
@@ -238,25 +236,32 @@
             $('promedioIt').innerHTML = (1000*(t)/Math.abs(t2-t1)).toFixed(2) ;
             delete d2;*/
         }
+
+        if(stop == 1) { // recalcular textura
+            stop = 0;
+            animar = false;
+/*            for(var i = 0; i < maxcoord2; i++) delete occupied[i];
+            for(var i = 0; i < particles.length; i++) delete particles[i];
+            init_variables();*/
+        }
+
         document.getElementById('itActual').innerHTML = t;
         requestAnimFrame(tick);
     }
 
 
     function resett() {
-        MIN = -100;
-        MAX = 300;
-        MINY = -100;
-        MAXY = 300;
         for(var i = 0; i < maxcoord2; i++) { // todos comienzan en estado "muerto"
             autcel0[i] = 0;
         }
 
         t = 0;
+        stop = 0;
+        animar = false;
 
         for(var i = 0; i < cantGen; i++) // algunos comenzaran en el estado "vivo"
             autcel0[aleat(maxcoord2)] = 1;
-        dibujar(ctx,MIN,MAX,MINY,MAXY);
+        dibujar();
     }
 
     function checks() {
@@ -283,44 +288,46 @@
 
     <div style="text-align:center; font-size:30px">Juego de la Vida</div>
 
-    <div style="text-align:center; font-size:20px" id="explicacion"> </div><br/>
+    <div style="text-align:left; font-size:20px" id="explicacion"> El Trabajo Pr&aacute;ctico propone la implementaci&oacute;n del <a href="http://es.wikipedia.org/wiki/Juego_de_la_vida" target="_blank">"Juego de la Vida"</a>.<br/>Para dar comienzo a la simulaci&oacute;n deben setearse la cantidad de celdas vivas al comienzo, las reglas de muerte y nacimiento y luego hacer click en Comenzar<br/>En todo momento se puede pausar la simulaci&oacute;n y realizar de a una iteraci&oacute;n si as&iacute; se desea. Se puede recomenzar la misma haciendo click en Reset.<br/>Se pueden traer celdas a la vida haciendo click en ellas, mientras la simulaci&oacute;n est&eacute; en marcha.</div><br/>
     <span style="text-align:center; font-size:20px">Cantidad de Iteraciones</span> <span style="text-align:center; font-size:20px" id="itActual"> 0</span><br/>
 
-    <input type="button" onclick="resett()" value="Reset" />
+    <input type="button" onclick="resett(); resett();" value="Reset" />
 <br/>
     <div id="canvas-container" style="float:left;">
         <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
     </div>
 
-    <input style="text-align:center; font-size:30px" id="comenzar" type="button" value="Comenzar" onclick="dib()"/>
-    <input style="text-align:center; font-size:30px" id="pausa" type="button" value="Pausa/Continuar" onclick="if(animar== false) {animar=true; tick();} else animar=false; "/><br/>
-    <input style="text-align:center; font-size:20px" id="cantGen" type="text" value="400" />Cantidad de Generadores
+    <input style="text-align:center; font-size:30px" id="pausa" type="button" value="Comenzar/Pausa" onclick="if(t==0) {resett(); resett();} if(animar== false) {animar=true; tick();} else animar=false; "/><br/>
+    <input style="text-align:center; font-size:30px" id="unaIt" type="button" value="Realizar una iteracion" onclick="unaIt=true;"/><br/>
+    <input style="text-align:center; font-size:20px" id="cantGen" type="text" value="0" />Cantidad de celdas vivas al inicio
 
 
 
     <table>
     <tr>
     <td>Nacer si tiene</td>
-    <td>1 vecino <input id="checkunonacer" type="checkbox" onclick="checks()" /></td>
-    <td>2 vecinos <input id="checkdosnacer" type="checkbox" onclick="checks()" /></td>
-    <td>3 vecinos <input id="checktresnacer" type="checkbox" checked onclick="checks()" /></td>
-    <td>4 vecinos <input id="checkcuatronacer" type="checkbox" onclick="checks()" /></td>
-    <td>5 vecinos <input id="checkcinconacer" type="checkbox" onclick="checks()" /></td>
-    <td>6 vecinos <input id="checkseisnacer" type="checkbox" onclick="checks()" /></td>
-    <td>7 vecinos <input id="checksietenacer" type="checkbox" onclick="checks()" /></td>
-    <td>8 vecinos <input id="checkochonacer" type="checkbox" onclick="checks()" /></td>
+    <td>1 <input id="checkunonacer" type="checkbox" onclick="checks()" /></td>
+    <td>2 <input id="checkdosnacer" type="checkbox" onclick="checks()" /></td>
+    <td>3 <input id="checktresnacer" type="checkbox" checked onclick="checks()" /></td>
+    <td>4 <input id="checkcuatronacer" type="checkbox" onclick="checks()" /></td>
+    <td>5 <input id="checkcinconacer" type="checkbox" onclick="checks()" /></td>
+    <td>6 <input id="checkseisnacer" type="checkbox" onclick="checks()" /></td>
+    <td>7 <input id="checksietenacer" type="checkbox" onclick="checks()" /></td>
+    <td>8 <input id="checkochonacer" type="checkbox" onclick="checks()" /></td>
+    <td>vecinos</td>
     </tr>
 
     <tr>
     <td>Morir si tiene</td>
-    <td>1 vecino <input id="checkunomorir" type="checkbox" checked onclick="checks()" /></td>
-    <td>2 vecinos <input id="checkdosmorir" type="checkbox" onclick="checks()" /></td>
-    <td>3 vecinos <input id="checktresmorir" type="checkbox" onclick="checks()" /></td>
-    <td>4 vecinos <input id="checkcuatromorir" type="checkbox" checked onclick="checks()" /></td>
-    <td>5 vecinos <input id="checkcincomorir" type="checkbox" checked onclick="checks()" /></td>
-    <td>6 vecinos <input id="checkseismorir" type="checkbox" checked onclick="checks()" /></td>
-    <td>7 vecinos <input id="checksietemorir" type="checkbox" checked onclick="checks()" /></td>
-    <td>8 vecinos <input id="checkochomorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>1 <input id="checkunomorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>2 <input id="checkdosmorir" type="checkbox" onclick="checks()" /></td>
+    <td>3 <input id="checktresmorir" type="checkbox" onclick="checks()" /></td>
+    <td>4 <input id="checkcuatromorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>5 <input id="checkcincomorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>6 <input id="checkseismorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>7 <input id="checksietemorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>8 <input id="checkochomorir" type="checkbox" checked onclick="checks()" /></td>
+    <td>vecinos</td>
     </tr>
     </table>
 
