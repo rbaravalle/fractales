@@ -8,22 +8,12 @@
 
 <script type="text/javascript">
 
-    var MIN = -100;
-    var MAX = 300;
-    var MINY = -100;
-    var MAXY = 300;
-
-    var STEP = (MAX-MIN)/1000;
-
     var click;
     var xPos, yPos;
     var ctx;
-    var escala = 2;
     var x, y;         // coords actuales al hacer click con el mouse onButtonDown()
-    var cursorX, cursorY, cursorA = 0;
     var pi3 = Math.PI/3;
     var deltaAng;
-    var estados = []; // pila de estados de la tortuga
     var c = 1;
     var p = 0.3;
     var q = c-p;
@@ -31,7 +21,7 @@
 
     var maxcoord = 128;
     var maxcoord2 = maxcoord*maxcoord;
-    var cantGen; //4%
+    var cantGen;
 
     var autcel0 = [];
     var autcel = [];
@@ -47,13 +37,10 @@
     var checksnacer, checksmorir;
     var w;
     var h;
+    var hizoReset; // se hizo click en reset y no se produjo ningun cambio aun
 
     function aleat(x) {
         return Math.floor(Math.random()*x);
-    }
-
-    function dib() {
-        dibujar(animar);
     }
 
     function findPos(obj) {
@@ -97,11 +84,6 @@
 
         document.getElementById('canvas').style.cursor='pointer';
 
-        var diff = MAX-MIN;
-        var diffY = MAXY-MINY;
-        x = MIN + diff*xPos/document.getElementById('canvas').width;
-        y = MINY + diffY*(document.getElementById('canvas').height-yPos)/document.getElementById('canvas').height;
-
         if(animar) {
             var ind = Math.floor((xPos/4))+Math.floor((maxcoord-yPos/4))*(maxcoord);
             autcel0[ind] = 1;
@@ -116,8 +98,6 @@
         
     function init(canvas) {
         try {
-            //canvas.onmousemove = onMouseMove;
-
             canvas.onmousedown=onButtonDown;
             canvas.onmouseup=onButtonUp;
 
@@ -141,27 +121,22 @@
 
     }
 
-    // dibuja en el cuadrado representado por (x0,y0) y (x1,y1)
+    // una iteracion de la simulacion
     function dibujar() {
-
         checks();
         cantGen = document.getElementById('cantGen').value;
 
         iterar();
-
         dibuja();
 
         for(var i = 0; i < maxcoord2; i++) {
             autcel0[i] = autcel[i];
         }
-
     }
 
     function iterar() {
-        // chequeamos cada celda con sus vecinos
         for(var i = 0; i < maxcoord; i++) {
             for(var j = 0; j < maxcoord; j++) {
-
                 var suma = 0;
                 var contorno = [
                     {'x':i-1,"y":j+1},
@@ -174,7 +149,10 @@
                     {'x':i+1,"y":j-1},
                 ];
                 for(var k = 0; k < contorno.length; k++) { // cuantos vecinos estan vivos
-                    suma += autcel0[ contorno[k].x+contorno[k].y*maxcoord ];
+                    if(contorno[k].x < maxcoord && 0 <= contorno[k].x &&
+                       contorno[k].y < maxcoord && 0 <= contorno[k].y
+                      )
+                        suma += autcel0[ contorno[k].x+contorno[k].y*maxcoord ];
                 }
 
                 if(autcel0[i+j*maxcoord]) { // esta viva
@@ -212,7 +190,8 @@
             autcel0[aleat(maxcoord2)] = 1;
 
         t=0;
-        resett();
+        resett(true);
+        resett(false);
     }
 
     function tick() {
@@ -221,28 +200,11 @@
             t++;
             dibujar();
             unaIt = false;
-            //mover();
-            /*transferencia();
-            t++;
-            if(t%REFRESCO == 0 || t== TIEMPO-1) {
-                dibujarParticulas();
-            }
-            var d2 = new Date();
-            var t2 = d2.getTime();
-            $('iteracion').innerHTML = t;
-            $('contorno').innerHTML = largoCont;
-            $('cantPart').innerHTML = particles.length;
-            $('tiempoIt').innerHTML = Math.abs(t2-t1)/1000 ;
-            $('promedioIt').innerHTML = (1000*(t)/Math.abs(t2-t1)).toFixed(2) ;
-            delete d2;*/
         }
 
-        if(stop == 1) { // recalcular textura
+        if(stop == 1) {
             stop = 0;
             animar = false;
-/*            for(var i = 0; i < maxcoord2; i++) delete occupied[i];
-            for(var i = 0; i < particles.length; i++) delete particles[i];
-            init_variables();*/
         }
 
         document.getElementById('itActual').innerHTML = t;
@@ -250,7 +212,7 @@
     }
 
 
-    function resett() {
+    function resett(c) {
         for(var i = 0; i < maxcoord2; i++) { // todos comienzan en estado "muerto"
             autcel0[i] = 0;
         }
@@ -258,6 +220,7 @@
         t = 0;
         stop = 0;
         animar = false;
+        if(c) hizoReset = 1;
 
         for(var i = 0; i < cantGen; i++) // algunos comenzaran en el estado "vivo"
             autcel0[aleat(maxcoord2)] = 1;
@@ -288,18 +251,18 @@
 
     <div style="text-align:center; font-size:30px">Juego de la Vida</div>
 
-    <div style="text-align:left; font-size:20px" id="explicacion"> El Trabajo Pr&aacute;ctico propone la implementaci&oacute;n del <a href="http://es.wikipedia.org/wiki/Juego_de_la_vida" target="_blank">"Juego de la Vida"</a>.<br/>Para dar comienzo a la simulaci&oacute;n deben setearse la cantidad de celdas vivas al comienzo, las reglas de muerte y nacimiento y luego hacer click en Comenzar<br/>En todo momento se puede pausar la simulaci&oacute;n y realizar de a una iteraci&oacute;n si as&iacute; se desea. Se puede recomenzar la misma haciendo click en Reset.<br/>Se pueden traer celdas a la vida haciendo click en ellas, mientras la simulaci&oacute;n est&eacute; en marcha.</div><br/>
+    <div style="text-align:left; font-size:20px" id="explicacion"> El Trabajo Pr&aacute;ctico propone la implementaci&oacute;n del <a href="http://es.wikipedia.org/wiki/Juego_de_la_vida" target="_blank">"Juego de la Vida"</a>.<br/>Para dar comienzo a la simulaci&oacute;n deben setearse la cantidad de celdas vivas al comienzo, las reglas de muerte y nacimiento y luego hacer click en Comenzar<br/>En todo momento se puede pausar la simulaci&oacute;n y realizar de a una iteraci&oacute;n si as&iacute; se desea. Se puede recomenzar la misma haciendo click en Reset.<br/>Se pueden setear celdas como vivas haciendo click en ellas, mientras la simulaci&oacute;n est&eacute; en marcha.</div><br/>
     <span style="text-align:center; font-size:20px">Cantidad de Iteraciones</span> <span style="text-align:center; font-size:20px" id="itActual"> 0</span><br/>
 
-    <input type="button" onclick="resett(); resett();" value="Reset" />
+    <input type="button" onclick="resett(true); resett(false);" value="Reset" />
 <br/>
     <div id="canvas-container" style="float:left;">
         <canvas id="canvas" style="background-color:black;" width="512" height="512"></canvas>
     </div>
 
-    <input style="text-align:center; font-size:30px" id="pausa" type="button" value="Comenzar/Pausa" onclick="if(t==0) {resett(); resett();} if(animar== false) {animar=true; tick();} else animar=false; "/><br/>
-    <input style="text-align:center; font-size:30px" id="unaIt" type="button" value="Realizar una iteracion" onclick="unaIt=true;"/><br/>
-    <input style="text-align:center; font-size:20px" id="cantGen" type="text" value="0" />Cantidad de celdas vivas al inicio
+    <input style="text-align:center; font-size:30px; width:400px;" id="pausa" type="button" value="Comenzar/Pausa" onclick="if(t==0 && !hizoReset) {resett(false);resett(false);} if(animar== false) {animar=true; tick();} else animar=false; "/><br/>
+    <input style="text-align:center; font-size:30px; width:400px;" id="unaIt" type="button" value="Realizar una iteracion" onclick="unaIt=true;"/><br/>
+    <input style="text-align:center; font-size:20px" id="cantGen" type="text" value="600" />Cantidad de celdas vivas al inicio
 
 
 
